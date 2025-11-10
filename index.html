@@ -9,35 +9,125 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/recharts@2.5.0/dist/Recharts.js"></script>
-    <script>
-        // Check if libraries loaded
-        window.addEventListener('load', function() {
-            if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof Babel === 'undefined') {
-                document.getElementById('root').innerHTML = '<div style="padding: 40px; text-align: center; font-family: sans-serif;"><h1 style="color: red;">Error Loading Libraries</h1><p>Please refresh the page. If the problem persists, check your internet connection.</p></div>';
-                console.error('Missing libraries:', {
-                    React: typeof React !== 'undefined',
-                    ReactDOM: typeof ReactDOM !== 'undefined',
-                    Babel: typeof Babel !== 'undefined'
-                });
-            }
-        });
-    </script>
-</head>
-<body>
-    <div id="root">
-        <div style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif;">
-            <div style="text-align: center;">
-                <div style="border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
-                <p style="color: #666;">Loading Materials Management System...</p>
-            </div>
-        </div>
-    </div>
     <style>
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
     </style>
+</head>
+<body>
+    <div id="root">
+        <div style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif;">
+            <div style="text-align: center;">
+                <div class="loader"></div>
+                <p style="color: #666;">Loading Materials Management System...</p>
+                <p id="status" style="color: #999; font-size: 12px; margin-top: 10px;">Initializing...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Diagnostic function
+        function updateStatus(message) {
+            const statusEl = document.getElementById('status');
+            if (statusEl) statusEl.textContent = message;
+            console.log('Status:', message);
+        }
+
+        // Check library loading with timeout
+        let checkCount = 0;
+        const maxChecks = 50; // 5 seconds max
+        
+        function checkLibraries() {
+            checkCount++;
+            updateStatus(`Checking libraries... (${checkCount}/${maxChecks})`);
+            
+            const reactLoaded = typeof React !== 'undefined';
+            const reactDomLoaded = typeof ReactDOM !== 'undefined';
+            const babelLoaded = typeof Babel !== 'undefined';
+            const rechartsLoaded = typeof Recharts !== 'undefined';
+            
+            console.log('Library status:', {
+                React: reactLoaded,
+                ReactDOM: reactDomLoaded,
+                Babel: babelLoaded,
+                Recharts: rechartsLoaded
+            });
+            
+            if (reactLoaded && reactDomLoaded && babelLoaded) {
+                updateStatus('Libraries loaded! Starting app...');
+                setTimeout(initializeApp, 100);
+                return;
+            }
+            
+            if (checkCount >= maxChecks) {
+                document.getElementById('root').innerHTML = `
+                    <div style="padding: 40px; font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h1 style="color: #dc2626;">Loading Error</h1>
+                        <p>Some required libraries failed to load. This might be due to:</p>
+                        <ul style="line-height: 1.8;">
+                            <li>Internet connection issues</li>
+                            <li>Corporate firewall blocking CDN libraries</li>
+                            <li>Ad blocker interference</li>
+                            <li>Browser security settings</li>
+                        </ul>
+                        <h3>What loaded:</h3>
+                        <ul>
+                            <li>React: ${reactLoaded ? '✓' : '✗'}</li>
+                            <li>ReactDOM: ${reactDomLoaded ? '✓' : '✗'}</li>
+                            <li>Babel: ${babelLoaded ? '✓' : '✗'}</li>
+                            <li>Recharts: ${rechartsLoaded ? '✓' : '✗'}</li>
+                        </ul>
+                        <h3>Try this:</h3>
+                        <ol style="line-height: 1.8;">
+                            <li>Refresh the page (Ctrl+Shift+R)</li>
+                            <li>Disable ad blockers</li>
+                            <li>Try a different browser</li>
+                            <li>Download and open the file locally</li>
+                        </ol>
+                        <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Try Again
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            setTimeout(checkLibraries, 100);
+        }
+        
+        function initializeApp() {
+            try {
+                updateStatus('Compiling application...');
+                // The Babel script will compile and execute the JSX below
+                console.log('App initialization started');
+            } catch (error) {
+                console.error('Initialization error:', error);
+                document.getElementById('root').innerHTML = `
+                    <div style="padding: 40px; font-family: sans-serif;">
+                        <h1 style="color: #dc2626;">Initialization Error</h1>
+                        <p>Error: ${error.message}</p>
+                        <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Reload Page
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
+        // Start checking after a brief delay to let scripts load
+        setTimeout(checkLibraries, 500);
+    </script>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
@@ -561,12 +651,10 @@
             const addUsage = (usage) => {
                 setUsageHistory([...usageHistory, usage].sort((a, b) => new Date(b.date) - new Date(a.date)));
                 
-                // Update inventory
                 const newInventory = {...inventory};
                 newInventory[usage.material].quantity -= parseFloat(usage.quantity);
                 setInventory(newInventory);
 
-                // Update contract remaining quantity
                 const activeContract = contracts.find(c => c.material === usage.material && c.status === 'active');
                 if (activeContract) {
                     const updatedContracts = contracts.map(c => {
