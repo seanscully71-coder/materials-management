@@ -64,10 +64,13 @@
                 Recharts: rechartsLoaded
             });
             
-            // Wait for Recharts too since we use it in charts
-            if (reactLoaded && reactDomLoaded && babelLoaded && rechartsLoaded) {
+            // Wait for Recharts too, but make it optional
+            if (reactLoaded && reactDomLoaded && babelLoaded) {
+                if (!rechartsLoaded) {
+                    console.warn('Recharts failed to load - charts will be disabled but app will still work');
+                }
                 updateStatus('Libraries loaded! Starting app...');
-                setTimeout(initializeApp, 500); // Give extra time for Recharts to fully initialize
+                setTimeout(initializeApp, 500);
                 return;
             }
             
@@ -84,10 +87,10 @@
                         </ul>
                         <h3>What loaded:</h3>
                         <ul>
-                            <li>React: ${reactLoaded ? '✓' : '✗'}</li>
-                            <li>ReactDOM: ${reactDomLoaded ? '✓' : '✗'}</li>
-                            <li>Babel: ${babelLoaded ? '✓' : '✗'}</li>
-                            <li>Recharts: ${rechartsLoaded ? '✓' : '✗'}</li>
+                            <li>React: ${reactLoaded ? '✓' : '✗ REQUIRED'}</li>
+                            <li>ReactDOM: ${reactDomLoaded ? '✓' : '✗ REQUIRED'}</li>
+                            <li>Babel: ${babelLoaded ? '✓' : '✗ REQUIRED'}</li>
+                            <li>Recharts: ${rechartsLoaded ? '✓' : '✗ (optional - charts disabled)'}</li>
                         </ul>
                         <h3>Try this:</h3>
                         <ol style="line-height: 1.8;">
