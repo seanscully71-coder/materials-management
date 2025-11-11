@@ -64,9 +64,10 @@
                 Recharts: rechartsLoaded
             });
             
-            if (reactLoaded && reactDomLoaded && babelLoaded) {
+            // Wait for Recharts too since we use it in charts
+            if (reactLoaded && reactDomLoaded && babelLoaded && rechartsLoaded) {
                 updateStatus('Libraries loaded! Starting app...');
-                setTimeout(initializeApp, 100);
+                setTimeout(initializeApp, 500); // Give extra time for Recharts to fully initialize
                 return;
             }
             
@@ -109,14 +110,50 @@
         function initializeApp() {
             try {
                 updateStatus('Compiling application...');
-                // The Babel script will compile and execute the JSX below
                 console.log('App initialization started');
+                
+                // Set a timeout to detect if compilation hangs
+                setTimeout(() => {
+                    const root = document.getElementById('root');
+                    // If still showing loading after 10 seconds, something went wrong
+                    if (root.innerHTML.includes('Loading Materials Management System')) {
+                        console.error('Compilation timeout - Babel may have failed');
+                        root.innerHTML = `
+                            <div style="padding: 40px; font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                                <h1 style="color: #dc2626;">Compilation Timeout</h1>
+                                <p>The application failed to compile within 10 seconds. This usually means:</p>
+                                <ul style="line-height: 1.8;">
+                                    <li>Babel (the JavaScript compiler) encountered an error</li>
+                                    <li>Your browser may not support the required features</li>
+                                    <li>A browser extension is interfering</li>
+                                </ul>
+                                <h3>Try these solutions:</h3>
+                                <ol style="line-height: 1.8;">
+                                    <li><strong>Open the browser console</strong> (F12) to see detailed errors</li>
+                                    <li><strong>Try a different browser</strong> (Chrome, Firefox, or Edge recommended)</li>
+                                    <li><strong>Disable browser extensions</strong> temporarily</li>
+                                    <li><strong>Download and open locally</strong> instead of using GitHub Pages</li>
+                                </ol>
+                                <div style="margin-top: 20px;">
+                                    <button onclick="location.reload()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                                        Try Again
+                                    </button>
+                                    <button onclick="window.open('https://app.netlify.com/drop', '_blank')" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                        Try Netlify Instead
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }, 10000);
+                
             } catch (error) {
                 console.error('Initialization error:', error);
                 document.getElementById('root').innerHTML = `
                     <div style="padding: 40px; font-family: sans-serif;">
                         <h1 style="color: #dc2626;">Initialization Error</h1>
                         <p>Error: ${error.message}</p>
+                        <pre style="background: #f3f4f6; padding: 15px; border-radius: 5px; overflow-x: auto;">${error.stack}</pre>
                         <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">
                             Reload Page
                         </button>
@@ -131,7 +168,12 @@
 
     <script type="text/babel">
         const { useState, useEffect } = React;
-        const { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts;
+        
+        // Safely get Recharts components
+        let LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer;
+        if (typeof Recharts !== 'undefined') {
+            ({ LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts);
+        }
 
         // Lucide icons as SVG components
         const Plus = ({ size = 24 }) => (
@@ -910,7 +952,7 @@
                             </div>
                         </div>
 
-                        {usageChartData.length > 0 && (
+                        {usageChartData.length > 0 && typeof ResponsiveContainer !== 'undefined' && (
                             <div className="bg-white p-6 rounded-lg shadow">
                                 <h3 className="text-lg font-semibold mb-4">Monthly Usage Trend</h3>
                                 <ResponsiveContainer width="100%" height={300}>
@@ -927,7 +969,7 @@
                             </div>
                         )}
 
-                        {priceChartData.length > 0 && (
+                        {priceChartData.length > 0 && typeof ResponsiveContainer !== 'undefined' && (
                             <div className="bg-white p-6 rounded-lg shadow">
                                 <h3 className="text-lg font-semibold mb-4">Market Price Trends</h3>
                                 <ResponsiveContainer width="100%" height={300}>
