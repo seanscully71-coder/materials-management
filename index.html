@@ -1153,8 +1153,33 @@
                 // Calculate days remaining based on usage rate
                 const calculateDaysRemaining = (remainingQty, avgMonthlyUsage) => {
                     if (avgMonthlyUsage === 0) return null;
-                    const monthsRemaining = remainingQty / avgMonthlyUsage;
-                    return Math.ceil(monthsRemaining * 30); // Convert months to days
+                    // Convert monthly usage to daily usage (assuming ~22 working days per month)
+                    const dailyUsage = avgMonthlyUsage / 22;
+                    const workingDaysRemaining = Math.ceil(remainingQty / dailyUsage);
+                    return workingDaysRemaining;
+                };
+
+                // Calculate estimated completion date based on working days
+                const calculateCompletionDate = (remainingQty, avgMonthlyUsage) => {
+                    if (avgMonthlyUsage === 0 || remainingQty <= 0) return null;
+                    
+                    // Convert monthly usage to daily usage (assuming ~22 working days per month)
+                    const dailyUsage = avgMonthlyUsage / 22;
+                    const workingDaysRemaining = Math.ceil(remainingQty / dailyUsage);
+                    
+                    // Add working days to current date (skip weekends)
+                    let completionDate = new Date();
+                    let daysToAdd = workingDaysRemaining;
+                    
+                    while (daysToAdd > 0) {
+                        completionDate.setDate(completionDate.getDate() + 1);
+                        // Skip weekends (0 = Sunday, 6 = Saturday)
+                        if (completionDate.getDay() !== 0 && completionDate.getDay() !== 6) {
+                            daysToAdd--;
+                        }
+                    }
+                    
+                    return completionDate;
                 };
 
                 const usageByMonth = {};
@@ -1241,13 +1266,8 @@
                                             const daysRemaining = calculateDaysRemaining(remainingQty, alAvgMonthlyUsage);
                                             const percentRemaining = (remainingQty / totalQty) * 100;
                                             
-                                            // Calculate estimated completion date
-                                            let estimatedCompletionDate = null;
-                                            if (alAvgMonthlyUsage > 0 && remainingQty > 0) {
-                                                const monthsRemaining = remainingQty / alAvgMonthlyUsage;
-                                                estimatedCompletionDate = new Date();
-                                                estimatedCompletionDate.setMonth(estimatedCompletionDate.getMonth() + monthsRemaining);
-                                            }
+                                            // Calculate estimated completion date using working days
+                                            const estimatedCompletionDate = calculateCompletionDate(remainingQty, alAvgMonthlyUsage);
                                             
                                             return (
                                                 <div key={c.id} className="border rounded p-3">
@@ -1306,13 +1326,8 @@
                                             const daysRemaining = calculateDaysRemaining(remainingQty, ssAvgMonthlyUsage);
                                             const percentRemaining = (remainingQty / totalQty) * 100;
                                             
-                                            // Calculate estimated completion date
-                                            let estimatedCompletionDate = null;
-                                            if (ssAvgMonthlyUsage > 0 && remainingQty > 0) {
-                                                const monthsRemaining = remainingQty / ssAvgMonthlyUsage;
-                                                estimatedCompletionDate = new Date();
-                                                estimatedCompletionDate.setMonth(estimatedCompletionDate.getMonth() + monthsRemaining);
-                                            }
+                                            // Calculate estimated completion date using working days
+                                            const estimatedCompletionDate = calculateCompletionDate(remainingQty, ssAvgMonthlyUsage);
                                             
                                             return (
                                                 <div key={c.id} className="border rounded p-3">
