@@ -274,6 +274,53 @@
                 localStorage.setItem('marketPrices', JSON.stringify(marketPrices));
             }, [marketPrices]);
 
+            // Export all data to JSON file
+            const exportAllData = () => {
+                const allData = {
+                    contracts: contracts,
+                    inventory: inventory,
+                    usageHistory: usageHistory,
+                    marketPrices: marketPrices,
+                    purchaseHistory: purchaseHistory,
+                    exportDate: new Date().toISOString(),
+                    version: '1.0'
+                };
+                
+                const dataStr = JSON.stringify(allData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `materials-data-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+
+            // Import data from JSON file
+            const importAllData = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        
+                        // Import all available data
+                        if (data.contracts) setContracts(data.contracts);
+                        if (data.inventory) setInventory(data.inventory);
+                        if (data.usageHistory) setUsageHistory(data.usageHistory);
+                        if (data.marketPrices) setMarketPrices(data.marketPrices);
+                        if (data.purchaseHistory) setPurchaseHistory(data.purchaseHistory);
+                        
+                        alert(`Data imported successfully!\nExported on: ${data.exportDate ? new Date(data.exportDate).toLocaleString() : 'Unknown'}`);
+                    } catch (error) {
+                        alert('Error importing data: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+
             const ContractForm = ({ onClose, onSubmit, initialData = null }) => {
                 const [formData, setFormData] = useState(initialData || {
                     id: Date.now(),
@@ -1826,12 +1873,29 @@
                                 <h1 className="text-2xl font-bold">Materials Management System</h1>
                                 <p className="text-sm text-blue-100">Sheet Metal Procurement & Contract Tracking</p>
                             </div>
-                            <button
-                                onClick={() => setShowImportDialog(true)}
-                                className="px-4 py-2 bg-white text-blue-600 rounded hover:bg-blue-50 font-medium"
-                            >
-                                Import from Excel
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={exportAllData}
+                                    className="px-4 py-2 bg-white text-blue-600 rounded hover:bg-blue-50 font-medium"
+                                >
+                                    Export Data
+                                </button>
+                                <label className="px-4 py-2 bg-white text-blue-600 rounded hover:bg-blue-50 font-medium cursor-pointer">
+                                    Import Data
+                                    <input
+                                        type="file"
+                                        accept=".json"
+                                        onChange={importAllData}
+                                        className="hidden"
+                                    />
+                                </label>
+                                <button
+                                    onClick={() => setShowImportDialog(true)}
+                                    className="px-4 py-2 bg-white text-blue-600 rounded hover:bg-blue-50 font-medium"
+                                >
+                                    Import from Excel
+                                </button>
+                            </div>
                         </div>
                     </div>
 
