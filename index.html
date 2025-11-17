@@ -171,7 +171,7 @@
     </script>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
         
         // Safely get Recharts components
         let LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer;
@@ -241,6 +241,8 @@
             const [editingMarketPrice, setEditingMarketPrice] = useState(null);
             const [editingUsage, setEditingUsage] = useState(null);
             const [showImportDialog, setShowImportDialog] = useState(false);
+            const [lastPriceFetch, setLastPriceFetch] = useState(null);
+            const [fetchingPrices, setFetchingPrices] = useState(false);
 
             // Load data from localStorage
             useEffect(() => {
@@ -249,12 +251,14 @@
                 const savedUsageHistory = localStorage.getItem('usageHistory');
                 const savedMarketPrices = localStorage.getItem('marketPrices');
                 const savedPurchaseHistory = localStorage.getItem('purchaseHistory');
+                const savedLastPriceFetch = localStorage.getItem('lastPriceFetch');
                 
                 if (savedContracts) setContracts(JSON.parse(savedContracts));
                 if (savedInventory) setInventory(JSON.parse(savedInventory));
                 if (savedUsageHistory) setUsageHistory(JSON.parse(savedUsageHistory));
                 if (savedMarketPrices) setMarketPrices(JSON.parse(savedMarketPrices));
                 if (savedPurchaseHistory) setPurchaseHistory(JSON.parse(savedPurchaseHistory));
+                if (savedLastPriceFetch) setLastPriceFetch(savedLastPriceFetch);
             }, []);
 
             // Save data to localStorage
@@ -319,6 +323,155 @@
                     }
                 };
                 reader.readAsText(file);
+            };
+
+            // Fetch latest metal prices from API
+            const fetchLatestPrices = async () => {
+                setFetchingPrices(true);
+                
+                try {
+                    const API_KEY = localStorage.getItem('metalsApiKey') || 'DEMO_KEY';
+                    
+                    let priceData;
+                    
+                    if (API_KEY === 'DEMO_KEY' || !API_KEY) {
+                        // Demo mode - use approximate current prices
+                        priceData = {
+                            aluminum: 0.9854,  // LME Aluminum per lb
+                            nickel: 7.25,      // LME Nickel per lb
+                            zinc: 1.15,        // LME Zinc per lb
+                            chrome: 0.85,      // Approximate
+                        };
+                        
+                        alert('Demo Mode: Using sample prices.\n\nTo fetch real prices:\n1. Sign up free at metals-api.com\n2. Get your API key\n3. Click "Set API Key" button');
+                    } else {
+                        // Real API call with correct symbols for paid subscription
+                        try {
+                            // Use the exact symbols available: ALU3M, NI3M, ZNC3M, MO, STEEL-SC
+                            const apiUrl = `https://metals-api.com/api/latest?access_key=${API_KEY}&base=USD&symbols=ALU3M,NI3M,ZNC3M,MO,STEEL-SC`;
+                            
+                            console.log('Fetching from:', apiUrl.replace(API_KEY, 'HIDDEN'));
+                            
+                            const response = await fetch(apiUrl, {
+                                method: 'GET',
+                                headers: {
+                                    'Accept': 'application/json',
+                                }
+                            });
+                            
+                            console.log('Response status:', response.status);
+                            
+                            // Get the full response text first
+                            const responseText = await response.text();
+                            console.log('Raw response:', responseText);
+                            
+                            if (!response.ok) {
+                                try {
+                                    const errorData = JSON.parse(responseText);
+                                    const errorMsg = errorData.error?.info || errorData.message || 'Unknown error';
+                                    
+                                    if (errorMsg.includes('invalid_symbol')) {
+                                        throw new Error(`API Error: Invalid symbols\n\n${errorMsg}`);
+                                    } else if (errorMsg.includes('invalid_access_key')) {
+                                        throw new Error(`API Error: Invalid API Key\n\nPlease check your API key in settings.`);
+                                    } else {
+                                        throw new Error(`API Error: ${errorMsg}`);
+                                    }
+                                } catch (parseError) {
+                                    if (parseError.message.startsWith('API Error:')) {
+                                        throw parseError;
+                                    }
+                                    throw new Error(`API returned status ${response.status}`);
+                                }
+                            }
+                            
+                            const data = JSON.parse(responseText);
+                            console.log('Parsed API Response:', data);
+                            console.log('Available rates:', Object.keys(data.rates || {}));
+                            
+                            if (!data.success) {
+                                const errorMsg = data.error?.info || data.error?.type || 'Unknown API error';
+                                throw new Error(`API Error: ${errorMsg}`);
+                            }
+                            
+                            // Check what's actually available
+                            if (!data.rates || Object.keys(data.rates).length === 0) {
+                                throw new Error('No price data returned from API.');
+                            }
+                            
+                            console.log('Got rates for:', Object.keys(data.rates));
+                            
+                            // Extract the metal prices
+                            // These are in troy ounces, prices are USD per troy ounce
+                            // Metals-API returns "per troy ounce" pricing
+                            priceData = {
+                                aluminum: data.rates?.ALU3M || data.rates?.ALU || null,
+                                nickel: data.rates?.NI3M || data.rates?.NI || null,
+                                zinc: data.rates?.ZNC3M || data.rates?.ZNC || null,
+                                molybdenum: data.rates?.MO || null,
+                                steelScrap: data.rates?.['STEEL-SC'] || null,
+                                chrome: null, // Not available
+                            };
+                            
+                            // Log what we got
+                            console.log('Extracted prices:', priceData);
+                            
+                            // Convert from per troy ounce to per pound (1 troy oz = 0.0685714 lbs)
+                            // So: price per lb = (price per troy oz) / 0.0685714 * 14.5833
+                            // Actually, simpler: price per lb = price per troy oz * 0.911458
+                            // OR: The API might already give USD per lb, check magnitudes
+                            
+                            // Typical prices: Aluminum ~$1/lb, Nickel ~$8/lb, Zinc ~$1.20/lb
+                            // If we get very small numbers (< 0.01), they're inverted
+                            
+                            if (priceData.aluminum && priceData.aluminum < 0.1) {
+                                // These look inverted, need to flip
+                                priceData.aluminum = priceData.aluminum ? (1 / priceData.aluminum) : null;
+                                priceData.nickel = priceData.nickel ? (1 / priceData.nickel) : null;
+                                priceData.zinc = priceData.zinc ? (1 / priceData.zinc) : null;
+                                priceData.molybdenum = priceData.molybdenum ? (1 / priceData.molybdenum) : null;
+                                priceData.steelScrap = priceData.steelScrap ? (1 / priceData.steelScrap) : null;
+                            }
+                            
+                            const hasData = priceData.aluminum || priceData.nickel || priceData.zinc;
+                            
+                            if (!hasData) {
+                                throw new Error(`No matching metals found in API response.`);
+                            }
+                            
+                            const successMsg = `✅ Prices fetched successfully!\n\n${
+                                priceData.aluminum ? `Aluminum (LME 3-mo): $${priceData.aluminum.toFixed(4)}/oz\n` : ''
+                            }${
+                                priceData.nickel ? `Nickel (LME 3-mo): $${priceData.nickel.toFixed(4)}/oz\n` : ''
+                            }${
+                                priceData.zinc ? `Zinc (LME 3-mo): $${priceData.zinc.toFixed(4)}/oz\n` : ''
+                            }${
+                                priceData.molybdenum ? `Molybdenum: $${priceData.molybdenum.toFixed(4)}/oz\n` : ''
+                            }${
+                                priceData.steelScrap ? `Steel Scrap (CFR Turkey): $${priceData.steelScrap.toFixed(4)}/oz\n` : ''
+                            }\n✏️ Fill in remaining prices manually.`;
+                            
+                            alert(successMsg);
+                        } catch (fetchError) {
+                            console.error('Fetch Error Details:', fetchError);
+                            throw fetchError;
+                        }
+                    }
+                    
+                    // Update last fetch time
+                    const now = new Date().toISOString();
+                    setLastPriceFetch(now);
+                    localStorage.setItem('lastPriceFetch', now);
+                    
+                    setFetchingPrices(false);
+                    return priceData;
+                    
+                } catch (error) {
+                    setFetchingPrices(false);
+                    console.error('Full error:', error);
+                    alert('Error fetching prices: ' + error.message + '\n\nYou can still enter prices manually.');
+                    return null;
+                }
             };
 
             const ContractForm = ({ onClose, onSubmit, initialData = null }) => {
@@ -878,6 +1031,20 @@
                     outokumpuSurcharge: '',
                     notes: ''
                 });
+                
+                const [renderCount, setRenderCount] = useState(0);
+                
+                // Create refs for each input
+                console.log('Creating refs, useRef is:', typeof useRef);
+                const lmeAluminumRef = useRef(null);
+                console.log('lmeAluminumRef created:', lmeAluminumRef);
+                const aluminumBaseRef = useRef(null);
+                const nickelRef = useRef(null);
+                const chromeRef = useRef(null);
+                const molybdenumRef = useRef(null);
+                const scrapIronRef = useRef(null);
+                
+                console.log('MarketPriceForm render #', renderCount, 'formData:', formData);
 
                 const handleSubmit = (e) => {
                     e.preventDefault();
@@ -889,14 +1056,119 @@
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                         <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
                             <div className="p-6">
-                                <h2 className="text-2xl font-bold mb-4">{initialData ? 'Edit Market Prices' : 'Enter Market Prices'}</h2>
+                                <div className="flex justify-between items-start mb-4">
+                                    <h2 className="text-2xl font-bold">{initialData ? 'Edit Market Prices' : 'Enter Market Prices'}</h2>
+                                    {!initialData && (
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                console.log('Fetch button clicked');
+                                                const prices = await fetchLatestPrices();
+                                                console.log('Fetched prices:', prices);
+                                                
+                                                if (prices) {
+                                                    // API returns prices per troy ounce
+                                                    // Convert to price per pound: 1 troy oz = 0.0685714 lbs
+                                                    // Price per lb = Price per troy oz / 0.0685714
+                                                    const convertToPerPound = (pricePerOz) => {
+                                                        if (!pricePerOz || pricePerOz === null || pricePerOz === undefined) {
+                                                            console.log('No price to convert:', pricePerOz);
+                                                            return '';
+                                                        }
+                                                        const converted = (pricePerOz / 0.0685714).toFixed(4);
+                                                        console.log(`Converting ${pricePerOz} per oz to ${converted} per lb`);
+                                                        return converted;
+                                                    };
+                                                    
+                                                    // Update state
+                                                    const newData = {
+                                                        ...formData,
+                                                        lmeAluminum: convertToPerPound(prices.aluminum),
+                                                        aluminumBase: convertToPerPound(prices.aluminum),
+                                                        nickel: convertToPerPound(prices.nickel),
+                                                        chrome: convertToPerPound(prices.zinc),
+                                                        molybdenum: convertToPerPound(prices.molybdenum),
+                                                        scrapIron: convertToPerPound(prices.steelScrap),
+                                                    };
+                                                    
+                                                    console.log('Setting form data to:', newData);
+                                                    setFormData(newData);
+                                                    
+                                                    // WORKAROUND: Also directly set input values via refs
+                                                    setTimeout(() => {
+                                                        console.log('Directly updating input values via refs');
+                                                        console.log('lmeAluminumRef:', lmeAluminumRef);
+                                                        console.log('lmeAluminumRef.current:', lmeAluminumRef.current);
+                                                        console.log('Refs status:', {
+                                                            lmeAluminum: !!lmeAluminumRef.current,
+                                                            aluminumBase: !!aluminumBaseRef.current,
+                                                            nickel: !!nickelRef.current,
+                                                            chrome: !!chromeRef.current,
+                                                            molybdenum: !!molybdenumRef.current,
+                                                            scrapIron: !!scrapIronRef.current
+                                                        });
+                                                        
+                                                        if (lmeAluminumRef.current) {
+                                                            console.log('lmeAluminumRef exists, setting value to:', newData.lmeAluminum);
+                                                            lmeAluminumRef.current.value = newData.lmeAluminum;
+                                                            console.log('After setting, input.value is:', lmeAluminumRef.current.value);
+                                                        } else {
+                                                            console.error('lmeAluminumRef.current is null!');
+                                                        }
+                                                        
+                                                        if (aluminumBaseRef.current) {
+                                                            aluminumBaseRef.current.value = newData.aluminumBase;
+                                                            console.log('Set aluminumBase to:', newData.aluminumBase);
+                                                        }
+                                                        if (nickelRef.current) {
+                                                            nickelRef.current.value = newData.nickel;
+                                                            console.log('Set nickel to:', newData.nickel);
+                                                        }
+                                                        if (chromeRef.current) {
+                                                            chromeRef.current.value = newData.chrome;
+                                                            console.log('Set chrome to:', newData.chrome);
+                                                        }
+                                                        if (molybdenumRef.current) {
+                                                            molybdenumRef.current.value = newData.molybdenum;
+                                                            console.log('Set molybdenum to:', newData.molybdenum);
+                                                        }
+                                                        if (scrapIronRef.current) {
+                                                            scrapIronRef.current.value = newData.scrapIron;
+                                                            console.log('Set scrapIron to:', newData.scrapIron);
+                                                        }
+                                                        console.log('All inputs updated via refs');
+                                                    }, 100);
+                                                }
+                                            }}
+                                            disabled={fetchingPrices}
+                                            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 text-sm"
+                                        >
+                                            {fetchingPrices ? 'Fetching...' : '🔄 Fetch Latest Prices'}
+                                        </button>
+                                    )}
+                                </div>
+                                
+                                {lastPriceFetch && (
+                                    <div className="mb-4 p-3 bg-blue-50 rounded text-sm text-blue-800">
+                                        Last price fetch: {new Date(lastPriceFetch).toLocaleString()}
+                                    </div>
+                                )}
+                                
+                                {/* Debug display - remove later */}
+                                <div className="mb-4 p-3 bg-yellow-50 rounded text-xs">
+                                    <strong>Debug - Current Form Values (Render #{renderCount}):</strong>
+                                    <div>LME Aluminum: {formData.lmeAluminum || '(empty)'}</div>
+                                    <div>Nickel: {formData.nickel || '(empty)'}</div>
+                                    <div>Chrome: {formData.chrome || '(empty)'}</div>
+                                </div>
+                                
                                 <form onSubmit={handleSubmit} className="space-y-4">
                                     <div>
                                         <label className="block text-sm font-medium mb-1">Date</label>
                                         <input
                                             type="date"
                                             value={formData.date}
-                                            onChange={(e) => setFormData({...formData, date: e.target.value})}
+                                            onChange={(e) => setFormData(prev => ({...prev, date: e.target.value}))}
                                             className="w-full border rounded px-3 py-2"
                                             required
                                         />
@@ -908,20 +1180,22 @@
                                             <div>
                                                 <label className="block text-sm font-medium mb-1">LME Aluminum ($/lb)</label>
                                                 <input
+                                                    ref={lmeAluminumRef}
                                                     type="number"
                                                     step="0.0001"
-                                                    value={formData.lmeAluminum}
-                                                    onChange={(e) => setFormData({...formData, lmeAluminum: e.target.value})}
+                                                    defaultValue={formData.lmeAluminum}
+                                                    onChange={(e) => setFormData(prev => ({...prev, lmeAluminum: e.target.value}))}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium mb-1">Aluminum Base ($/lb)</label>
                                                 <input
+                                                    ref={aluminumBaseRef}
                                                     type="number"
                                                     step="0.0001"
-                                                    value={formData.aluminumBase}
-                                                    onChange={(e) => setFormData({...formData, aluminumBase: e.target.value})}
+                                                    defaultValue={formData.aluminumBase}
+                                                    onChange={(e) => setFormData(prev => ({...prev, aluminumBase: e.target.value}))}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
@@ -931,7 +1205,7 @@
                                                     type="number"
                                                     step="0.0001"
                                                     value={formData.midwestPremium}
-                                                    onChange={(e) => setFormData({...formData, midwestPremium: e.target.value})}
+                                                    onChange={(e) => setFormData(prev => ({...prev, midwestPremium: e.target.value}))}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
@@ -944,40 +1218,44 @@
                                             <div>
                                                 <label className="block text-sm font-medium mb-1">Nickel ($/lb)</label>
                                                 <input
+                                                    ref={nickelRef}
                                                     type="number"
                                                     step="0.0001"
-                                                    value={formData.nickel}
-                                                    onChange={(e) => setFormData({...formData, nickel: e.target.value})}
+                                                    defaultValue={formData.nickel}
+                                                    onChange={(e) => setFormData(prev => ({...prev, nickel: e.target.value}))}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium mb-1">Chrome ($/lb)</label>
                                                 <input
+                                                    ref={chromeRef}
                                                     type="number"
                                                     step="0.0001"
-                                                    value={formData.chrome}
-                                                    onChange={(e) => setFormData({...formData, chrome: e.target.value})}
+                                                    defaultValue={formData.chrome}
+                                                    onChange={(e) => setFormData(prev => ({...prev, chrome: e.target.value}))}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium mb-1">Molybdenum ($/lb)</label>
                                                 <input
+                                                    ref={molybdenumRef}
                                                     type="number"
                                                     step="0.0001"
-                                                    value={formData.molybdenum}
-                                                    onChange={(e) => setFormData({...formData, molybdenum: e.target.value})}
+                                                    defaultValue={formData.molybdenum}
+                                                    onChange={(e) => setFormData(prev => ({...prev, molybdenum: e.target.value}))}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium mb-1">Scrap Iron ($/lb)</label>
                                                 <input
+                                                    ref={scrapIronRef}
                                                     type="number"
                                                     step="0.0001"
-                                                    value={formData.scrapIron}
-                                                    onChange={(e) => setFormData({...formData, scrapIron: e.target.value})}
+                                                    defaultValue={formData.scrapIron}
+                                                    onChange={(e) => setFormData(prev => ({...prev, scrapIron: e.target.value}))}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
@@ -987,7 +1265,7 @@
                                                     type="number"
                                                     step="0.0001"
                                                     value={formData.conversionPricing}
-                                                    onChange={(e) => setFormData({...formData, conversionPricing: e.target.value})}
+                                                    onChange={(e) => setFormData(prev => ({...prev, conversionPricing: e.target.value}))}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
@@ -1003,7 +1281,7 @@
                                                     type="number"
                                                     step="0.0001"
                                                     value={formData.nasStainlessSurcharge}
-                                                    onChange={(e) => setFormData({...formData, nasStainlessSurcharge: e.target.value})}
+                                                    onChange={(e) => setFormData(prev => ({...prev, nasStainlessSurcharge: e.target.value}))}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
@@ -1013,7 +1291,7 @@
                                                     type="number"
                                                     step="0.0001"
                                                     value={formData.outokumpuSurcharge}
-                                                    onChange={(e) => setFormData({...formData, outokumpuSurcharge: e.target.value})}
+                                                    onChange={(e) => setFormData(prev => ({...prev, outokumpuSurcharge: e.target.value}))}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
@@ -1024,7 +1302,7 @@
                                         <label className="block text-sm font-medium mb-1">Notes (Optional)</label>
                                         <textarea
                                             value={formData.notes}
-                                            onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                                            onChange={(e) => setFormData(prev => ({...prev, notes: e.target.value}))}
                                             className="w-full border rounded px-3 py-2"
                                             rows="2"
                                         />
@@ -1091,6 +1369,12 @@
 
             const updateMarketPrice = (updatedPrice) => {
                 setMarketPrices(marketPrices.map(p => p.id === updatedPrice.id ? updatedPrice : p).sort((a, b) => new Date(b.date) - new Date(a.date)));
+            };
+
+            const deleteMarketPrice = (id) => {
+                if (confirm('Are you sure you want to delete this market price entry?')) {
+                    setMarketPrices(marketPrices.filter(p => p.id !== id));
+                }
             };
 
             const updateInventory = (newInventory) => {
@@ -1904,15 +2188,23 @@
                                                 <td className="px-6 py-4">${price.nasStainlessSurcharge || '-'}</td>
                                                 <td className="px-6 py-4 text-sm text-gray-600">{price.notes || '-'}</td>
                                                 <td className="px-6 py-4">
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditingMarketPrice(price);
-                                                            setShowMarketPriceForm(true);
-                                                        }}
-                                                        className="text-blue-600 hover:text-blue-800 text-sm"
-                                                    >
-                                                        Edit
-                                                    </button>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingMarketPrice(price);
+                                                                setShowMarketPriceForm(true);
+                                                            }}
+                                                            className="text-blue-600 hover:text-blue-800 text-sm"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={() => deleteMarketPrice(price.id)}
+                                                            className="text-red-600 hover:text-red-800 text-sm"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -1938,6 +2230,19 @@
                                 <p className="text-sm text-blue-100">Sheet Metal Procurement & Contract Tracking</p>
                             </div>
                             <div className="flex gap-2">
+                                <button
+                                    onClick={() => {
+                                        const key = prompt('Enter your Metals-API.com API key:\n\n1. Sign up free at https://metals-api.com\n2. Get your API key from the dashboard\n3. Paste it here\n\nLeave blank to use demo mode.');
+                                        if (key !== null) {
+                                            localStorage.setItem('metalsApiKey', key || 'DEMO_KEY');
+                                            alert(key ? 'API key saved successfully!' : 'Using demo mode with sample prices.');
+                                        }
+                                    }}
+                                    className="px-4 py-2 bg-white text-blue-600 rounded hover:bg-blue-50 font-medium text-sm"
+                                    title="Configure API key for live price fetching"
+                                >
+                                    ⚙️ Set API Key
+                                </button>
                                 <button
                                     onClick={exportAllData}
                                     className="px-4 py-2 bg-white text-blue-600 rounded hover:bg-blue-50 font-medium"
