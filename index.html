@@ -1032,24 +1032,86 @@
                     notes: ''
                 });
                 
-                const [renderCount, setRenderCount] = useState(0);
-                
-                // Create refs for each input
-                console.log('Creating refs, useRef is:', typeof useRef);
-                const lmeAluminumRef = useRef(null);
-                console.log('lmeAluminumRef created:', lmeAluminumRef);
-                const aluminumBaseRef = useRef(null);
-                const nickelRef = useRef(null);
-                const chromeRef = useRef(null);
-                const molybdenumRef = useRef(null);
-                const scrapIronRef = useRef(null);
-                
-                console.log('MarketPriceForm render #', renderCount, 'formData:', formData);
+                // Key to force re-render
+                const [formKey, setFormKey] = useState(Date.now());
 
                 const handleSubmit = (e) => {
                     e.preventDefault();
                     onSubmit(formData);
                     onClose();
+                };
+
+                const handleFetchPrices = async () => {
+                    console.log('=== FETCH BUTTON CLICKED ===');
+                    const prices = await fetchLatestPrices();
+                    console.log('Prices returned from API:', prices);
+                    
+                    if (prices) {
+                        const convertToPerPound = (pricePerOz) => {
+                            if (!pricePerOz) return '';
+                            return (pricePerOz / 0.0685714).toFixed(4);
+                        };
+                        
+                        // Create completely new object
+                        const newData = {
+                            id: Date.now(),
+                            date: formData.date,
+                            lmeAluminum: convertToPerPound(prices.aluminum),
+                            aluminumBase: convertToPerPound(prices.aluminum),
+                            midwestPremium: formData.midwestPremium,
+                            nickel: convertToPerPound(prices.nickel),
+                            chrome: convertToPerPound(prices.zinc),
+                            molybdenum: convertToPerPound(prices.molybdenum),
+                            scrapIron: convertToPerPound(prices.steelScrap),
+                            conversionPricing: formData.conversionPricing,
+                            nasStainlessSurcharge: formData.nasStainlessSurcharge,
+                            outokumpuSurcharge: formData.outokumpuSurcharge,
+                            notes: formData.notes
+                        };
+                        
+                        console.log('Setting form data to:', newData);
+// MANUAL FIX: Directly set input values with JavaScript
+                        setTimeout(() => {
+                            // Find all number inputs in the form
+                            const inputs = document.querySelectorAll('input[type="number"]');
+                            
+                            // Get the labels to identify which field is which
+                            inputs.forEach(input => {
+                                const label = input.parentElement.querySelector('label');
+                                if (!label) return;
+                                
+                                const labelText = label.textContent.toLowerCase();
+                                
+                                if (labelText.includes('lme aluminum')) {
+                                    input.value = newData.lmeAluminum;
+                                    console.log('Set LME Aluminum to:', newData.lmeAluminum);
+                                } else if (labelText.includes('aluminum base')) {
+                                    input.value = newData.aluminumBase;
+                                    console.log('Set Aluminum Base to:', newData.aluminumBase);
+                                } else if (labelText.includes('nickel')) {
+                                    input.value = newData.nickel;
+                                    console.log('Set Nickel to:', newData.nickel);
+                                } else if (labelText.includes('chrome')) {
+                                    input.value = newData.chrome;
+                                    console.log('Set Chrome to:', newData.chrome);
+                                } else if (labelText.includes('molybdenum')) {
+                                    input.value = newData.molybdenum;
+                                    console.log('Set Molybdenum to:', newData.molybdenum);
+                                } else if (labelText.includes('scrap iron')) {
+                                    input.value = newData.scrapIron;
+                                    console.log('Set Scrap Iron to:', newData.scrapIron);
+                                }
+                            });
+                            
+                            console.log('✅ ALL FIELDS MANUALLY FILLED!');
+                        }, 100);
+
+
+                        setFormData(newData);
+                        
+                        // FORCE component to re-mount
+                        setFormKey(Date.now());
+                    }
                 };
 
                 return (
@@ -1061,85 +1123,7 @@
                                     {!initialData && (
                                         <button
                                             type="button"
-                                            onClick={async () => {
-                                                console.log('Fetch button clicked');
-                                                const prices = await fetchLatestPrices();
-                                                console.log('Fetched prices:', prices);
-                                                
-                                                if (prices) {
-                                                    // API returns prices per troy ounce
-                                                    // Convert to price per pound: 1 troy oz = 0.0685714 lbs
-                                                    // Price per lb = Price per troy oz / 0.0685714
-                                                    const convertToPerPound = (pricePerOz) => {
-                                                        if (!pricePerOz || pricePerOz === null || pricePerOz === undefined) {
-                                                            console.log('No price to convert:', pricePerOz);
-                                                            return '';
-                                                        }
-                                                        const converted = (pricePerOz / 0.0685714).toFixed(4);
-                                                        console.log(`Converting ${pricePerOz} per oz to ${converted} per lb`);
-                                                        return converted;
-                                                    };
-                                                    
-                                                    // Update state
-                                                    const newData = {
-                                                        ...formData,
-                                                        lmeAluminum: convertToPerPound(prices.aluminum),
-                                                        aluminumBase: convertToPerPound(prices.aluminum),
-                                                        nickel: convertToPerPound(prices.nickel),
-                                                        chrome: convertToPerPound(prices.zinc),
-                                                        molybdenum: convertToPerPound(prices.molybdenum),
-                                                        scrapIron: convertToPerPound(prices.steelScrap),
-                                                    };
-                                                    
-                                                    console.log('Setting form data to:', newData);
-                                                    setFormData(newData);
-                                                    
-                                                    // WORKAROUND: Also directly set input values via refs
-                                                    setTimeout(() => {
-                                                        console.log('Directly updating input values via refs');
-                                                        console.log('lmeAluminumRef:', lmeAluminumRef);
-                                                        console.log('lmeAluminumRef.current:', lmeAluminumRef.current);
-                                                        console.log('Refs status:', {
-                                                            lmeAluminum: !!lmeAluminumRef.current,
-                                                            aluminumBase: !!aluminumBaseRef.current,
-                                                            nickel: !!nickelRef.current,
-                                                            chrome: !!chromeRef.current,
-                                                            molybdenum: !!molybdenumRef.current,
-                                                            scrapIron: !!scrapIronRef.current
-                                                        });
-                                                        
-                                                        if (lmeAluminumRef.current) {
-                                                            console.log('lmeAluminumRef exists, setting value to:', newData.lmeAluminum);
-                                                            lmeAluminumRef.current.value = newData.lmeAluminum;
-                                                            console.log('After setting, input.value is:', lmeAluminumRef.current.value);
-                                                        } else {
-                                                            console.error('lmeAluminumRef.current is null!');
-                                                        }
-                                                        
-                                                        if (aluminumBaseRef.current) {
-                                                            aluminumBaseRef.current.value = newData.aluminumBase;
-                                                            console.log('Set aluminumBase to:', newData.aluminumBase);
-                                                        }
-                                                        if (nickelRef.current) {
-                                                            nickelRef.current.value = newData.nickel;
-                                                            console.log('Set nickel to:', newData.nickel);
-                                                        }
-                                                        if (chromeRef.current) {
-                                                            chromeRef.current.value = newData.chrome;
-                                                            console.log('Set chrome to:', newData.chrome);
-                                                        }
-                                                        if (molybdenumRef.current) {
-                                                            molybdenumRef.current.value = newData.molybdenum;
-                                                            console.log('Set molybdenum to:', newData.molybdenum);
-                                                        }
-                                                        if (scrapIronRef.current) {
-                                                            scrapIronRef.current.value = newData.scrapIron;
-                                                            console.log('Set scrapIron to:', newData.scrapIron);
-                                                        }
-                                                        console.log('All inputs updated via refs');
-                                                    }, 100);
-                                                }
-                                            }}
+                                            onClick={handleFetchPrices}
                                             disabled={fetchingPrices}
                                             className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 text-sm"
                                         >
@@ -1154,21 +1138,14 @@
                                     </div>
                                 )}
                                 
-                                {/* Debug display - remove later */}
-                                <div className="mb-4 p-3 bg-yellow-50 rounded text-xs">
-                                    <strong>Debug - Current Form Values (Render #{renderCount}):</strong>
-                                    <div>LME Aluminum: {formData.lmeAluminum || '(empty)'}</div>
-                                    <div>Nickel: {formData.nickel || '(empty)'}</div>
-                                    <div>Chrome: {formData.chrome || '(empty)'}</div>
-                                </div>
-                                
-                                <form onSubmit={handleSubmit} className="space-y-4">
+                                {/* Add key prop to force re-render */}
+                                <form key={formKey} onSubmit={handleSubmit} className="space-y-4">
                                     <div>
                                         <label className="block text-sm font-medium mb-1">Date</label>
                                         <input
                                             type="date"
-                                            value={formData.date}
-                                            onChange={(e) => setFormData(prev => ({...prev, date: e.target.value}))}
+                                            defaultValue={formData.date}
+                                            onChange={(e) => setFormData({...formData, date: e.target.value})}
                                             className="w-full border rounded px-3 py-2"
                                             required
                                         />
@@ -1180,22 +1157,20 @@
                                             <div>
                                                 <label className="block text-sm font-medium mb-1">LME Aluminum ($/lb)</label>
                                                 <input
-                                                    ref={lmeAluminumRef}
                                                     type="number"
                                                     step="0.0001"
                                                     defaultValue={formData.lmeAluminum}
-                                                    onChange={(e) => setFormData(prev => ({...prev, lmeAluminum: e.target.value}))}
+                                                    onChange={(e) => setFormData({...formData, lmeAluminum: e.target.value})}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium mb-1">Aluminum Base ($/lb)</label>
                                                 <input
-                                                    ref={aluminumBaseRef}
                                                     type="number"
                                                     step="0.0001"
                                                     defaultValue={formData.aluminumBase}
-                                                    onChange={(e) => setFormData(prev => ({...prev, aluminumBase: e.target.value}))}
+                                                    onChange={(e) => setFormData({...formData, aluminumBase: e.target.value})}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
@@ -1204,8 +1179,8 @@
                                                 <input
                                                     type="number"
                                                     step="0.0001"
-                                                    value={formData.midwestPremium}
-                                                    onChange={(e) => setFormData(prev => ({...prev, midwestPremium: e.target.value}))}
+                                                    defaultValue={formData.midwestPremium}
+                                                    onChange={(e) => setFormData({...formData, midwestPremium: e.target.value})}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
@@ -1218,44 +1193,40 @@
                                             <div>
                                                 <label className="block text-sm font-medium mb-1">Nickel ($/lb)</label>
                                                 <input
-                                                    ref={nickelRef}
                                                     type="number"
                                                     step="0.0001"
                                                     defaultValue={formData.nickel}
-                                                    onChange={(e) => setFormData(prev => ({...prev, nickel: e.target.value}))}
+                                                    onChange={(e) => setFormData({...formData, nickel: e.target.value})}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium mb-1">Chrome ($/lb)</label>
                                                 <input
-                                                    ref={chromeRef}
                                                     type="number"
                                                     step="0.0001"
                                                     defaultValue={formData.chrome}
-                                                    onChange={(e) => setFormData(prev => ({...prev, chrome: e.target.value}))}
+                                                    onChange={(e) => setFormData({...formData, chrome: e.target.value})}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium mb-1">Molybdenum ($/lb)</label>
                                                 <input
-                                                    ref={molybdenumRef}
                                                     type="number"
                                                     step="0.0001"
                                                     defaultValue={formData.molybdenum}
-                                                    onChange={(e) => setFormData(prev => ({...prev, molybdenum: e.target.value}))}
+                                                    onChange={(e) => setFormData({...formData, molybdenum: e.target.value})}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium mb-1">Scrap Iron ($/lb)</label>
                                                 <input
-                                                    ref={scrapIronRef}
                                                     type="number"
                                                     step="0.0001"
                                                     defaultValue={formData.scrapIron}
-                                                    onChange={(e) => setFormData(prev => ({...prev, scrapIron: e.target.value}))}
+                                                    onChange={(e) => setFormData({...formData, scrapIron: e.target.value})}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
@@ -1264,8 +1235,8 @@
                                                 <input
                                                     type="number"
                                                     step="0.0001"
-                                                    value={formData.conversionPricing}
-                                                    onChange={(e) => setFormData(prev => ({...prev, conversionPricing: e.target.value}))}
+                                                    defaultValue={formData.conversionPricing}
+                                                    onChange={(e) => setFormData({...formData, conversionPricing: e.target.value})}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
@@ -1280,8 +1251,8 @@
                                                 <input
                                                     type="number"
                                                     step="0.0001"
-                                                    value={formData.nasStainlessSurcharge}
-                                                    onChange={(e) => setFormData(prev => ({...prev, nasStainlessSurcharge: e.target.value}))}
+                                                    defaultValue={formData.nasStainlessSurcharge}
+                                                    onChange={(e) => setFormData({...formData, nasStainlessSurcharge: e.target.value})}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
@@ -1290,8 +1261,8 @@
                                                 <input
                                                     type="number"
                                                     step="0.0001"
-                                                    value={formData.outokumpuSurcharge}
-                                                    onChange={(e) => setFormData(prev => ({...prev, outokumpuSurcharge: e.target.value}))}
+                                                    defaultValue={formData.outokumpuSurcharge}
+                                                    onChange={(e) => setFormData({...formData, outokumpuSurcharge: e.target.value})}
                                                     className="w-full border rounded px-3 py-2"
                                                 />
                                             </div>
@@ -1301,8 +1272,8 @@
                                     <div>
                                         <label className="block text-sm font-medium mb-1">Notes (Optional)</label>
                                         <textarea
-                                            value={formData.notes}
-                                            onChange={(e) => setFormData(prev => ({...prev, notes: e.target.value}))}
+                                            defaultValue={formData.notes}
+                                            onChange={(e) => setFormData({...formData, notes: e.target.value})}
                                             className="w-full border rounded px-3 py-2"
                                             rows="2"
                                         />
@@ -1329,6 +1300,7 @@
                     </div>
                 );
             };
+
 
             const addContract = (contract) => {
                 setContracts([...contracts, contract]);
