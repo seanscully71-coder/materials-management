@@ -57,7 +57,7 @@
             const reactLoaded = typeof React !== 'undefined';
             const reactDomLoaded = typeof ReactDOM !== 'undefined';
             const babelLoaded = typeof Babel !== 'undefined';
-            const rechartsLoaded = typeof Recharts !== 'undefined';
+            const rechartsLoaded = typeof Recharts !== 'undefined' || typeof window.Recharts !== 'undefined';
             
             console.log('Library status:', {
                 React: reactLoaded,
@@ -176,9 +176,20 @@
         
         // Safely get Recharts components
         let LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine;
-	if (typeof Recharts !== 'undefined') {
-    	({ LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } = Recharts);
+
+// Try multiple ways Recharts might be exported
+if (typeof Recharts !== 'undefined') {
+    ({ LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } = Recharts);
+} else if (typeof window.Recharts !== 'undefined') {
+    ({ LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } = window.Recharts);
 }
+
+// Debug log
+console.log('Recharts check:', {
+    'typeof Recharts': typeof Recharts,
+    'window.Recharts': typeof window.Recharts,
+    'LineChart available': typeof LineChart !== 'undefined'
+});
 
         // Check if XLSX library is available (SheetJS for Excel parsing)
         const XLSX = window.XLSX;
