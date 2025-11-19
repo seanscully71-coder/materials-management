@@ -424,7 +424,7 @@
                             // Typical prices: Aluminum ~$1/lb, Nickel ~$8/lb, Zinc ~$1.20/lb
                             // If we get very small numbers (< 0.01), they're inverted
                             
-                            if (priceData.aluminum && priceData.aluminum < 0.1) {
+                            if (priceData.aluminum && priceData.aluminum > 5) {
                                 // These look inverted, need to flip
                                 priceData.aluminum = priceData.aluminum ? (1 / priceData.aluminum) : null;
                                 priceData.nickel = priceData.nickel ? (1 / priceData.nickel) : null;
@@ -1016,290 +1016,243 @@
             };
 
             const MarketPriceForm = ({ onClose, onSubmit, initialData = null }) => {
-                const [formData, setFormData] = useState(initialData || {
-                    id: Date.now(),
-                    date: new Date().toISOString().split('T')[0],
-                    lmeAluminum: '',
-                    aluminumBase: '',
-                    midwestPremium: '',
-                    nickel: '',
-                    chrome: '',
-                    molybdenum: '',
-                    scrapIron: '',
-                    conversionPricing: '',
-                    nasStainlessSurcharge: '',
-                    outokumpuSurcharge: '',
-                    notes: ''
-                });
-                
-                // Key to force re-render
-                const [formKey, setFormKey] = useState(Date.now());
+    const [formData, setFormData] = useState(initialData || {
+        id: Date.now(),
+        date: new Date().toISOString().split('T')[0],
+        lmeAluminum: '',
+        aluminumBase: '',
+        midwestPremium: '',
+        nickel: '',
+        chrome: '',
+        molybdenum: '',
+        scrapIron: '',
+        conversionPricing: '',
+        nasStainlessSurcharge: '',
+        outokumpuSurcharge: '',
+        notes: ''
+    });
+    
+    const [isFetching, setIsFetching] = useState(false);
 
-                const handleSubmit = (e) => {
-                    e.preventDefault();
-                    onSubmit(formData);
-                    onClose();
-                };
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSubmit(formData);
+        onClose();
+    };
 
-                const handleFetchPrices = async () => {
-                    console.log('=== FETCH BUTTON CLICKED ===');
-                    const prices = await fetchLatestPrices();
-                    console.log('Prices returned from API:', prices);
+    const handleFetchPrices = async () => {
+        setIsFetching(true);
+        const prices = await fetchLatestPrices();
+        
+        if (prices) {
+            // Convert from per troy ounce to per pound if needed
+            const convertToPerPound = (pricePerOz) => {
+                if (!pricePerOz) return '';
+                // Metals-API returns prices per troy ounce
+                // 1 troy oz = 0.0685714 lbs, so price per lb = price per oz / 0.0685714
+                return (pricePerOz / 0.0685714).toFixed(4);
+            };
+            
+            // Update the form state with fetched prices
+            setFormData(prev => ({
+                ...prev,
+                lmeAluminum: convertToPerPound(prices.aluminum) || prev.lmeAluminum,
+                aluminumBase: convertToPerPound(prices.aluminum) || prev.aluminumBase,
+                nickel: convertToPerPound(prices.nickel) || prev.nickel,
+                chrome: convertToPerPound(prices.zinc) || prev.chrome,
+                molybdenum: convertToPerPound(prices.molybdenum) || prev.molybdenum,
+                scrapIron: convertToPerPound(prices.steelScrap) || prev.scrapIron
+            }));
+        }
+        
+        setIsFetching(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                        <h2 className="text-2xl font-bold">{initialData ? 'Edit Market Prices' : 'Enter Market Prices'}</h2>
+                        {!initialData && (
+                            <button
+                                type="button"
+                                onClick={handleFetchPrices}
+                                disabled={isFetching}
+                                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 text-sm"
+                            >
+                                {isFetching ? 'Fetching...' : '🔄 Fetch Latest Prices'}
+                            </button>
+                        )}
+                    </div>
                     
-                    if (prices) {
-                        const convertToPerPound = (pricePerOz) => {
-                            if (!pricePerOz) return '';
-                            return (pricePerOz / 0.0685714).toFixed(4);
-                        };
-                        
-                        // Create completely new object
-                        const newData = {
-                            id: Date.now(),
-                            date: formData.date,
-                            lmeAluminum: convertToPerPound(prices.aluminum),
-                            aluminumBase: convertToPerPound(prices.aluminum),
-                            midwestPremium: formData.midwestPremium,
-                            nickel: convertToPerPound(prices.nickel),
-                            chrome: convertToPerPound(prices.zinc),
-                            molybdenum: convertToPerPound(prices.molybdenum),
-                            scrapIron: convertToPerPound(prices.steelScrap),
-                            conversionPricing: formData.conversionPricing,
-                            nasStainlessSurcharge: formData.nasStainlessSurcharge,
-                            outokumpuSurcharge: formData.outokumpuSurcharge,
-                            notes: formData.notes
-                        };
-                        
-                        console.log('Setting form data to:', newData);
-// MANUAL FIX: Directly set input values with JavaScript
-                        setTimeout(() => {
-                            // Find all number inputs in the form
-                            const inputs = document.querySelectorAll('input[type="number"]');
-                            
-                            // Get the labels to identify which field is which
-                            inputs.forEach(input => {
-                                const label = input.parentElement.querySelector('label');
-                                if (!label) return;
-                                
-                                const labelText = label.textContent.toLowerCase();
-                                
-                                if (labelText.includes('lme aluminum')) {
-                                    input.value = newData.lmeAluminum;
-                                    console.log('Set LME Aluminum to:', newData.lmeAluminum);
-                                } else if (labelText.includes('aluminum base')) {
-                                    input.value = newData.aluminumBase;
-                                    console.log('Set Aluminum Base to:', newData.aluminumBase);
-                                } else if (labelText.includes('nickel')) {
-                                    input.value = newData.nickel;
-                                    console.log('Set Nickel to:', newData.nickel);
-                                } else if (labelText.includes('chrome')) {
-                                    input.value = newData.chrome;
-                                    console.log('Set Chrome to:', newData.chrome);
-                                } else if (labelText.includes('molybdenum')) {
-                                    input.value = newData.molybdenum;
-                                    console.log('Set Molybdenum to:', newData.molybdenum);
-                                } else if (labelText.includes('scrap iron')) {
-                                    input.value = newData.scrapIron;
-                                    console.log('Set Scrap Iron to:', newData.scrapIron);
-                                }
-                            });
-                            
-                            console.log('✅ ALL FIELDS MANUALLY FILLED!');
-                        }, 100);
+                    {lastPriceFetch && (
+                        <div className="mb-4 p-3 bg-blue-50 rounded text-sm text-blue-800">
+                            Last price fetch: {new Date(lastPriceFetch).toLocaleString()}
+                        </div>
+                    )}
+                    
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Date</label>
+                            <input
+                                type="date"
+                                value={formData.date}
+                                onChange={(e) => setFormData({...formData, date: e.target.value})}
+                                className="w-full border rounded px-3 py-2"
+                                required
+                            />
+                        </div>
 
-
-                        setFormData(newData);
-                        
-                        // FORCE component to re-mount
-                        setFormKey(Date.now());
-                    }
-                };
-
-                return (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                        <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-                            <div className="p-6">
-                                <div className="flex justify-between items-start mb-4">
-                                    <h2 className="text-2xl font-bold">{initialData ? 'Edit Market Prices' : 'Enter Market Prices'}</h2>
-                                    {!initialData && (
-                                        <button
-                                            type="button"
-                                            onClick={handleFetchPrices}
-                                            disabled={fetchingPrices}
-                                            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 text-sm"
-                                        >
-                                            {fetchingPrices ? 'Fetching...' : '🔄 Fetch Latest Prices'}
-                                        </button>
-                                    )}
+                        <div className="border-t pt-4">
+                            <h3 className="font-semibold mb-3 text-lg">Aluminum Pricing</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">LME Aluminum ($/lb)</label>
+                                    <input
+                                        type="number"
+                                        step="0.0001"
+                                        value={formData.lmeAluminum}
+                                        onChange={(e) => setFormData({...formData, lmeAluminum: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
                                 </div>
-                                
-                                {lastPriceFetch && (
-                                    <div className="mb-4 p-3 bg-blue-50 rounded text-sm text-blue-800">
-                                        Last price fetch: {new Date(lastPriceFetch).toLocaleString()}
-                                    </div>
-                                )}
-                                
-                                {/* Add key prop to force re-render */}
-                                <form key={formKey} onSubmit={handleSubmit} className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Date</label>
-                                        <input
-                                            type="date"
-                                            defaultValue={formData.date}
-                                            onChange={(e) => setFormData({...formData, date: e.target.value})}
-                                            className="w-full border rounded px-3 py-2"
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="border-t pt-4">
-                                        <h3 className="font-semibold mb-3 text-lg">Aluminum Pricing</h3>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">LME Aluminum ($/lb)</label>
-                                                <input
-                                                    type="number"
-                                                    step="0.0001"
-                                                    defaultValue={formData.lmeAluminum}
-                                                    onChange={(e) => setFormData({...formData, lmeAluminum: e.target.value})}
-                                                    className="w-full border rounded px-3 py-2"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Aluminum Base ($/lb)</label>
-                                                <input
-                                                    type="number"
-                                                    step="0.0001"
-                                                    defaultValue={formData.aluminumBase}
-                                                    onChange={(e) => setFormData({...formData, aluminumBase: e.target.value})}
-                                                    className="w-full border rounded px-3 py-2"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Midwest Premium ($/lb)</label>
-                                                <input
-                                                    type="number"
-                                                    step="0.0001"
-                                                    defaultValue={formData.midwestPremium}
-                                                    onChange={(e) => setFormData({...formData, midwestPremium: e.target.value})}
-                                                    className="w-full border rounded px-3 py-2"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="border-t pt-4">
-                                        <h3 className="font-semibold mb-3 text-lg">Stainless Steel Components</h3>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Nickel ($/lb)</label>
-                                                <input
-                                                    type="number"
-                                                    step="0.0001"
-                                                    defaultValue={formData.nickel}
-                                                    onChange={(e) => setFormData({...formData, nickel: e.target.value})}
-                                                    className="w-full border rounded px-3 py-2"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Chrome ($/lb)</label>
-                                                <input
-                                                    type="number"
-                                                    step="0.0001"
-                                                    defaultValue={formData.chrome}
-                                                    onChange={(e) => setFormData({...formData, chrome: e.target.value})}
-                                                    className="w-full border rounded px-3 py-2"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Molybdenum ($/lb)</label>
-                                                <input
-                                                    type="number"
-                                                    step="0.0001"
-                                                    defaultValue={formData.molybdenum}
-                                                    onChange={(e) => setFormData({...formData, molybdenum: e.target.value})}
-                                                    className="w-full border rounded px-3 py-2"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Scrap Iron ($/lb)</label>
-                                                <input
-                                                    type="number"
-                                                    step="0.0001"
-                                                    defaultValue={formData.scrapIron}
-                                                    onChange={(e) => setFormData({...formData, scrapIron: e.target.value})}
-                                                    className="w-full border rounded px-3 py-2"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Conversion Pricing ($/lb)</label>
-                                                <input
-                                                    type="number"
-                                                    step="0.0001"
-                                                    defaultValue={formData.conversionPricing}
-                                                    onChange={(e) => setFormData({...formData, conversionPricing: e.target.value})}
-                                                    className="w-full border rounded px-3 py-2"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="border-t pt-4">
-                                        <h3 className="font-semibold mb-3 text-lg">Stainless Surcharges</h3>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">North American Stainless ($/lb)</label>
-                                                <input
-                                                    type="number"
-                                                    step="0.0001"
-                                                    defaultValue={formData.nasStainlessSurcharge}
-                                                    onChange={(e) => setFormData({...formData, nasStainlessSurcharge: e.target.value})}
-                                                    className="w-full border rounded px-3 py-2"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Outokumpu ($/lb)</label>
-                                                <input
-                                                    type="number"
-                                                    step="0.0001"
-                                                    defaultValue={formData.outokumpuSurcharge}
-                                                    onChange={(e) => setFormData({...formData, outokumpuSurcharge: e.target.value})}
-                                                    className="w-full border rounded px-3 py-2"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Notes (Optional)</label>
-                                        <textarea
-                                            defaultValue={formData.notes}
-                                            onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                                            className="w-full border rounded px-3 py-2"
-                                            rows="2"
-                                        />
-                                    </div>
-
-                                    <div className="flex justify-end gap-2 pt-4">
-                                        <button
-                                            type="button"
-                                            onClick={onClose}
-                                            className="px-4 py-2 border rounded hover:bg-gray-100"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                        >
-                                            {initialData ? 'Update Prices' : 'Save Prices'}
-                                        </button>
-                                    </div>
-                                </form>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Aluminum Base ($/lb)</label>
+                                    <input
+                                        type="number"
+                                        step="0.0001"
+                                        value={formData.aluminumBase}
+                                        onChange={(e) => setFormData({...formData, aluminumBase: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Midwest Premium ($/lb)</label>
+                                    <input
+                                        type="number"
+                                        step="0.0001"
+                                        value={formData.midwestPremium}
+                                        onChange={(e) => setFormData({...formData, midwestPremium: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
                             </div>
                         </div>
-                    </div>
-                );
-            };
+
+                        <div className="border-t pt-4">
+                            <h3 className="font-semibold mb-3 text-lg">Stainless Steel Components</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Nickel ($/lb)</label>
+                                    <input
+                                        type="number"
+                                        step="0.0001"
+                                        value={formData.nickel}
+                                        onChange={(e) => setFormData({...formData, nickel: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Chrome ($/lb)</label>
+                                    <input
+                                        type="number"
+                                        step="0.0001"
+                                        value={formData.chrome}
+                                        onChange={(e) => setFormData({...formData, chrome: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Molybdenum ($/lb)</label>
+                                    <input
+                                        type="number"
+                                        step="0.0001"
+                                        value={formData.molybdenum}
+                                        onChange={(e) => setFormData({...formData, molybdenum: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Scrap Iron ($/lb)</label>
+                                    <input
+                                        type="number"
+                                        step="0.0001"
+                                        value={formData.scrapIron}
+                                        onChange={(e) => setFormData({...formData, scrapIron: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Conversion Pricing ($/lb)</label>
+                                    <input
+                                        type="number"
+                                        step="0.0001"
+                                        value={formData.conversionPricing}
+                                        onChange={(e) => setFormData({...formData, conversionPricing: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="border-t pt-4">
+                            <h3 className="font-semibold mb-3 text-lg">Stainless Surcharges</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">North American Stainless ($/lb)</label>
+                                    <input
+                                        type="number"
+                                        step="0.0001"
+                                        value={formData.nasStainlessSurcharge}
+                                        onChange={(e) => setFormData({...formData, nasStainlessSurcharge: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Outokumpu ($/lb)</label>
+                                    <input
+                                        type="number"
+                                        step="0.0001"
+                                        value={formData.outokumpuSurcharge}
+                                        onChange={(e) => setFormData({...formData, outokumpuSurcharge: e.target.value})}
+                                        className="w-full border rounded px-3 py-2"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Notes (Optional)</label>
+                            <textarea
+                                value={formData.notes}
+                                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                                className="w-full border rounded px-3 py-2"
+                                rows="2"
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-4">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2 border rounded hover:bg-gray-100"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                                {initialData ? 'Update Prices' : 'Save Prices'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 
             const addContract = (contract) => {
