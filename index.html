@@ -234,6 +234,12 @@ console.log('Recharts check:', {
                 <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
         );
+	const Briefcase = ({ size = 24 }) => (
+       	   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+           	<rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+           	<path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+   	);
 
         function MaterialsManagement() {
             const [activeTab, setActiveTab] = useState('dashboard');
@@ -255,7 +261,14 @@ console.log('Recharts check:', {
             const [showImportDialog, setShowImportDialog] = useState(false);
             const [lastPriceFetch, setLastPriceFetch] = useState(null);
             const [fetchingPrices, setFetchingPrices] = useState(false);
-
+	    const [bidPackages, setBidPackages] = useState([]);
+	    const [bids, setBids] = useState([]);
+	    const [showBidPackageForm, setShowBidPackageForm] = useState(false);
+	    const [showBidForm, setShowBidForm] = useState(false);
+	    const [editingBidPackage, setEditingBidPackage] = useState(null);
+	    const [editingBid, setEditingBid] = useState(null);
+	    const [selectedBidPackage, setSelectedBidPackage] = useState(null);
+	   
             // Load data from localStorage
             useEffect(() => {
                 const savedContracts = localStorage.getItem('contracts');
@@ -264,13 +277,18 @@ console.log('Recharts check:', {
                 const savedMarketPrices = localStorage.getItem('marketPrices');
                 const savedPurchaseHistory = localStorage.getItem('purchaseHistory');
                 const savedLastPriceFetch = localStorage.getItem('lastPriceFetch');
-                
+		const savedBidPackages = localStorage.getItem('bidPackages');
+		const savedBids = localStorage.getItem('bids');
+		if (savedBidPackages) setBidPackages(JSON.parse(savedBidPackages));
+		if (savedBids) setBids(JSON.parse(savedBids));
+            
                 if (savedContracts) setContracts(JSON.parse(savedContracts));
                 if (savedInventory) setInventory(JSON.parse(savedInventory));
                 if (savedUsageHistory) setUsageHistory(JSON.parse(savedUsageHistory));
                 if (savedMarketPrices) setMarketPrices(JSON.parse(savedMarketPrices));
                 if (savedPurchaseHistory) setPurchaseHistory(JSON.parse(savedPurchaseHistory));
                 if (savedLastPriceFetch) setLastPriceFetch(savedLastPriceFetch);
+		
             }, []);
 
             // Save data to localStorage
@@ -289,7 +307,14 @@ console.log('Recharts check:', {
             useEffect(() => {
                 localStorage.setItem('marketPrices', JSON.stringify(marketPrices));
             }, [marketPrices]);
+	    useEffect(() => {
+       		localStorage.setItem('bidPackages', JSON.stringify(bidPackages));
+   	    }, [bidPackages]);
 
+   	    useEffect(() => {
+       		localStorage.setItem('bids', JSON.stringify(bids));
+   	    }, [bids]);
+	
             // Export all data to JSON file
             const exportAllData = () => {
                 const allData = {
@@ -298,8 +323,10 @@ console.log('Recharts check:', {
                     usageHistory: usageHistory,
                     marketPrices: marketPrices,
                     purchaseHistory: purchaseHistory,
+		    bidPackages: bidPackages,
+   			bids: bids,
                     exportDate: new Date().toISOString(),
-                    version: '1.0'
+                    version: '1.1'
                 };
                 
                 const dataStr = JSON.stringify(allData, null, 2);
@@ -328,6 +355,8 @@ console.log('Recharts check:', {
                         if (data.usageHistory) setUsageHistory(data.usageHistory);
                         if (data.marketPrices) setMarketPrices(data.marketPrices);
                         if (data.purchaseHistory) setPurchaseHistory(data.purchaseHistory);
+			if (data.bidPackages) setBidPackages(data.bidPackages);
+   			if (data.bids) setBids(data.bids);
                         
                         alert(`Data imported successfully!\nExported on: ${data.exportDate ? new Date(data.exportDate).toLocaleString() : 'Unknown'}`);
                     } catch (error) {
@@ -1244,7 +1273,623 @@ console.log('Recharts check:', {
         </div>
     );
 };
+const BidPackageForm = ({ onClose, onSubmit, initialData = null }) => {
+    const [formData, setFormData] = useState(initialData || {
+        id: Date.now(),
+        name: '',
+        material: 'aluminum5052',
+        targetQuantity: '',
+        period: '',
+        notes: '',
+        status: 'open',
+        createdDate: new Date().toISOString().split('T')[0]
+    });
 
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSubmit(formData);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+                <div className="p-6">
+                    <h2 className="text-2xl font-bold mb-4">
+                        {initialData ? 'Edit Bid Package' : 'Create New Bid Package'}
+                    </h2>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Package Name</label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                placeholder="e.g., Q4 2025 Aluminum Contract"
+                                className="w-full border rounded px-3 py-2"
+                                required
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Material</label>
+                                <select
+                                    value={formData.material}
+                                    onChange={(e) => setFormData({...formData, material: e.target.value})}
+                                    className="w-full border rounded px-3 py-2"
+                                    required
+                                >
+                                    <option value="aluminum5052">Aluminum 5052</option>
+                                    <option value="stainless304">Stainless Steel 304 2B</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Target Quantity (lbs)</label>
+                                <input
+                                    type="number"
+                                    value={formData.targetQuantity}
+                                    onChange={(e) => setFormData({...formData, targetQuantity: e.target.value})}
+                                    className="w-full border rounded px-3 py-2"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Period</label>
+                                <input
+                                    type="text"
+                                    value={formData.period}
+                                    onChange={(e) => setFormData({...formData, period: e.target.value})}
+                                    placeholder="e.g., Q4 2025"
+                                    className="w-full border rounded px-3 py-2"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Status</label>
+                                <select
+                                    value={formData.status}
+                                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                                    className="w-full border rounded px-3 py-2"
+                                >
+                                    <option value="open">Open for Bids</option>
+                                    <option value="reviewing">Under Review</option>
+                                    <option value="awarded">Awarded</option>
+                                    <option value="closed">Closed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Notes</label>
+                            <textarea
+                                value={formData.notes}
+                                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                                className="w-full border rounded px-3 py-2"
+                                rows="3"
+                                placeholder="Any special requirements or notes about this bid package"
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-4">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2 border rounded hover:bg-gray-100"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                                {initialData ? 'Update Package' : 'Create Package'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+const BidForm = ({ onClose, onSubmit, bidPackage, initialData = null }) => {
+    const [formData, setFormData] = useState(initialData || {
+        id: Date.now(),
+        packageId: bidPackage.id,
+        vendor: '',
+        pricePerLb: '',
+        totalQuantity: bidPackage.targetQuantity,
+        leadTime: '',
+        paymentTerms: '',
+        minimumOrderQty: '',
+        notes: '',
+        receivedDate: new Date().toISOString().split('T')[0]
+    });
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSubmit(formData);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6">
+                    <h2 className="text-2xl font-bold mb-4">
+                        {initialData ? 'Edit Vendor Bid' : 'Add Vendor Bid'}
+                    </h2>
+                    <div className="bg-blue-50 p-3 rounded mb-4">
+                        <p className="text-sm text-blue-900"><strong>Bid Package:</strong> {bidPackage.name}</p>
+                        <p className="text-sm text-blue-800">Target: {parseFloat(bidPackage.targetQuantity).toLocaleString()} lbs</p>
+                    </div>
+                    
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Vendor Name</label>
+                            <input
+                                type="text"
+                                value={formData.vendor}
+                                onChange={(e) => setFormData({...formData, vendor: e.target.value})}
+                                className="w-full border rounded px-3 py-2"
+                                required
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Price per Pound ($)</label>
+                                <input
+                                    type="number"
+                                    step="0.0001"
+                                    value={formData.pricePerLb}
+                                    onChange={(e) => setFormData({...formData, pricePerLb: e.target.value})}
+                                    className="w-full border rounded px-3 py-2"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Total Quantity (lbs)</label>
+                                <input
+                                    type="number"
+                                    value={formData.totalQuantity}
+                                    onChange={(e) => setFormData({...formData, totalQuantity: e.target.value})}
+                                    className="w-full border rounded px-3 py-2"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Lead Time (weeks)</label>
+                                <input
+                                    type="number"
+                                    value={formData.leadTime}
+                                    onChange={(e) => setFormData({...formData, leadTime: e.target.value})}
+                                    className="w-full border rounded px-3 py-2"
+                                    placeholder="e.g., 8"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Payment Terms</label>
+                                <input
+                                    type="text"
+                                    value={formData.paymentTerms}
+                                    onChange={(e) => setFormData({...formData, paymentTerms: e.target.value})}
+                                    className="w-full border rounded px-3 py-2"
+                                    placeholder="e.g., Net 30"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Minimum Order Quantity (lbs)</label>
+                            <input
+                                type="number"
+                                value={formData.minimumOrderQty}
+                                onChange={(e) => setFormData({...formData, minimumOrderQty: e.target.value})}
+                                className="w-full border rounded px-3 py-2"
+                                placeholder="Optional"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Bid Received Date</label>
+                            <input
+                                type="date"
+                                value={formData.receivedDate}
+                                onChange={(e) => setFormData({...formData, receivedDate: e.target.value})}
+                                className="w-full border rounded px-3 py-2"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Notes / Special Conditions</label>
+                            <textarea
+                                value={formData.notes}
+                                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                                className="w-full border rounded px-3 py-2"
+                                rows="3"
+                                placeholder="Any special terms, conditions, or notes about this bid"
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-4">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2 border rounded hover:bg-gray-100"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                                {initialData ? 'Update Bid' : 'Add Bid'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+const ContractBidsView = () => {
+    const addBidPackage = (pkg) => {
+        setBidPackages([...bidPackages, pkg]);
+    };
+
+    const updateBidPackage = (updatedPkg) => {
+        setBidPackages(bidPackages.map(p => p.id === updatedPkg.id ? updatedPkg : p));
+    };
+
+    const deleteBidPackage = (id) => {
+        if (confirm('Are you sure you want to delete this bid package? All associated bids will also be deleted.')) {
+            setBidPackages(bidPackages.filter(p => p.id !== id));
+            setBids(bids.filter(b => b.packageId !== id));
+        }
+    };
+
+    const addBid = (bid) => {
+        setBids([...bids, bid]);
+    };
+
+    const updateBid = (updatedBid) => {
+        setBids(bids.map(b => b.id === updatedBid.id ? updatedBid : b));
+    };
+
+    const deleteBid = (id) => {
+        if (confirm('Are you sure you want to delete this bid?')) {
+            setBids(bids.filter(b => b.id !== id));
+        }
+    };
+
+    const getBidsForPackage = (packageId) => {
+        return bids.filter(b => b.packageId === packageId);
+    };
+
+    const getLowestBid = (packageBids) => {
+        if (packageBids.length === 0) return null;
+        return packageBids.reduce((lowest, bid) => 
+            parseFloat(bid.pricePerLb) < parseFloat(lowest.pricePerLb) ? bid : lowest
+        );
+    };
+
+    const convertBidToContract = (bid) => {
+        const pkg = bidPackages.find(p => p.id === bid.packageId);
+        if (!pkg) return;
+
+        const newContract = {
+            id: Date.now(),
+            material: pkg.material,
+            vendor: bid.vendor,
+            pricePerLb: bid.pricePerLb,
+            totalQuantity: bid.totalQuantity,
+            remainingQuantity: bid.totalQuantity,
+            avgMonthlyUsage: '',
+            orderDate: new Date().toISOString().split('T')[0],
+            deliveryDate: '',
+            estimatedCompletionDate: '',
+            status: 'future',
+            notes: `Converted from bid package: ${pkg.name}`
+        };
+
+        if (confirm(`Convert this bid from ${bid.vendor} to a contract?\n\nThis will create a new contract with:\nPrice: $${bid.pricePerLb}/lb\nQuantity: ${parseFloat(bid.totalQuantity).toLocaleString()} lbs`)) {
+            setContracts([...contracts, newContract]);
+            
+            // Update bid package status to awarded
+            const updatedPkg = {...pkg, status: 'awarded'};
+            updateBidPackage(updatedPkg);
+            
+            alert('Contract created successfully! You can view it in the Contracts tab.');
+            setActiveTab('contracts');
+        }
+    };
+
+    // If viewing a specific package's bids
+    if (selectedBidPackage) {
+        const packageBids = getBidsForPackage(selectedBidPackage.id);
+        const lowestBid = getLowestBid(packageBids);
+
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center gap-4 mb-6">
+                    <button
+                        onClick={() => setSelectedBidPackage(null)}
+                        className="text-blue-600 hover:text-blue-800"
+                    >
+                        ← Back to Bid Packages
+                    </button>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow">
+                    <div className="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 className="text-2xl font-bold">{selectedBidPackage.name}</h2>
+                            <div className="mt-2 space-y-1">
+                                <p className="text-sm text-gray-600">
+                                    <strong>Material:</strong> {selectedBidPackage.material === 'aluminum5052' ? 'Aluminum 5052' : 'Stainless Steel 304 2B'}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                    <strong>Target Quantity:</strong> {parseFloat(selectedBidPackage.targetQuantity).toLocaleString()} lbs
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                    <strong>Period:</strong> {selectedBidPackage.period}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                    <strong>Status:</strong> <span className={`px-2 py-0.5 rounded text-xs ${
+                                        selectedBidPackage.status === 'open' ? 'bg-green-100 text-green-800' :
+                                        selectedBidPackage.status === 'reviewing' ? 'bg-yellow-100 text-yellow-800' :
+                                        selectedBidPackage.status === 'awarded' ? 'bg-blue-100 text-blue-800' :
+                                        'bg-gray-100 text-gray-800'
+                                    }`}>{selectedBidPackage.status}</span>
+                                </p>
+                                {selectedBidPackage.notes && (
+                                    <p className="text-sm text-gray-600">
+                                        <strong>Notes:</strong> {selectedBidPackage.notes}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => {
+                                setEditingBid(null);
+                                setShowBidForm(true);
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                            <Plus size={20} />
+                            Add Vendor Bid
+                        </button>
+                    </div>
+
+                    {packageBids.length > 0 && lowestBid && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                            <h3 className="font-semibold text-green-900 mb-1">Best Bid</h3>
+                            <p className="text-lg font-bold text-green-700">
+                                {lowestBid.vendor} - ${lowestBid.pricePerLb}/lb
+                            </p>
+                            <p className="text-sm text-green-800">
+                                Total: ${(parseFloat(lowestBid.pricePerLb) * parseFloat(lowestBid.totalQuantity)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </p>
+                        </div>
+                    )}
+
+                    {packageBids.length > 0 ? (
+                        <div className="space-y-3">
+                            {packageBids.sort((a, b) => parseFloat(a.pricePerLb) - parseFloat(b.pricePerLb)).map(bid => {
+                                const isLowest = lowestBid && bid.id === lowestBid.id;
+                                const totalCost = parseFloat(bid.pricePerLb) * parseFloat(bid.totalQuantity);
+                                
+                                return (
+                                    <div key={bid.id} className={`border rounded-lg p-4 ${isLowest ? 'border-green-500 bg-green-50' : ''}`}>
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="text-lg font-semibold">{bid.vendor}</h3>
+                                                    {isLowest && (
+                                                        <span className="px-2 py-0.5 bg-green-600 text-white text-xs rounded">
+                                                            BEST PRICE
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-gray-500">Received: {bid.receivedDate}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-2xl font-bold text-blue-600">${bid.pricePerLb}/lb</p>
+                                                <p className="text-sm text-gray-600">Total: ${totalCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                                            <div>
+                                                <p className="text-xs text-gray-500">Quantity</p>
+                                                <p className="font-medium">{parseFloat(bid.totalQuantity).toLocaleString()} lbs</p>
+                                            </div>
+                                            {bid.leadTime && (
+                                                <div>
+                                                    <p className="text-xs text-gray-500">Lead Time</p>
+                                                    <p className="font-medium">{bid.leadTime} weeks</p>
+                                                </div>
+                                            )}
+                                            {bid.paymentTerms && (
+                                                <div>
+                                                    <p className="text-xs text-gray-500">Payment Terms</p>
+                                                    <p className="font-medium">{bid.paymentTerms}</p>
+                                                </div>
+                                            )}
+                                            {bid.minimumOrderQty && (
+                                                <div>
+                                                    <p className="text-xs text-gray-500">Min Order</p>
+                                                    <p className="font-medium">{parseFloat(bid.minimumOrderQty).toLocaleString()} lbs</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {bid.notes && (
+                                            <div className="mb-3">
+                                                <p className="text-xs text-gray-500 mb-1">Notes</p>
+                                                <p className="text-sm text-gray-700">{bid.notes}</p>
+                                            </div>
+                                        )}
+
+                                        <div className="flex gap-2 pt-3 border-t">
+                                            <button
+                                                onClick={() => convertBidToContract(bid)}
+                                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                                            >
+                                                Convert to Contract
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setEditingBid(bid);
+                                                    setShowBidForm(true);
+                                                }}
+                                                className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => deleteBid(bid.id)}
+                                                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="text-center py-12 text-gray-500">
+                            <p>No vendor bids yet for this package.</p>
+                            <p className="text-sm mt-2">Click "Add Vendor Bid" to add the first bid.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+return (
+        <div className="space-y-4">
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Contract Bids</h2>
+                <button
+                    onClick={() => {
+                        setEditingBidPackage(null);
+                        setShowBidPackageForm(true);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                    <Plus size={20} />
+                    New Bid Package
+                </button>
+            </div>
+
+            {bidPackages.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {bidPackages.map(pkg => {
+                        const packageBids = getBidsForPackage(pkg.id);
+                        const lowestBid = getLowestBid(packageBids);
+                        
+                        return (
+                            <div key={pkg.id} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
+                                <div className="flex justify-between items-start mb-3">
+                                    <div className="flex-1">
+                                        <h3 className="text-lg font-semibold">{pkg.name}</h3>
+                                        <p className="text-sm text-gray-600 mt-1">
+                                            {pkg.material === 'aluminum5052' ? 'Aluminum 5052' : 'Stainless Steel 304 2B'}
+                                        </p>
+                                    </div>
+                                    <span className={`px-2 py-1 rounded text-xs ${
+                                        pkg.status === 'open' ? 'bg-green-100 text-green-800' :
+                                        pkg.status === 'reviewing' ? 'bg-yellow-100 text-yellow-800' :
+                                        pkg.status === 'awarded' ? 'bg-blue-100 text-blue-800' :
+                                        'bg-gray-100 text-gray-800'
+                                    }`}>
+                                        {pkg.status}
+                                    </span>
+                                </div>
+
+                                <div className="space-y-2 mb-4">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Target Quantity:</span>
+                                        <span className="font-medium">{parseFloat(pkg.targetQuantity).toLocaleString()} lbs</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Period:</span>
+                                        <span className="font-medium">{pkg.period}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Bids Received:</span>
+                                        <span className="font-medium">{packageBids.length}</span>
+                                    </div>
+                                    {lowestBid && (
+                                        <div className="flex justify-between text-sm pt-2 border-t">
+                                            <span className="text-gray-600">Best Price:</span>
+                                            <span className="font-bold text-green-600">
+                                                ${lowestBid.pricePerLb}/lb ({lowestBid.vendor})
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setSelectedBidPackage(pkg)}
+                                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                                    >
+                                        View Bids ({packageBids.length})
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setEditingBidPackage(pkg);
+                                            setShowBidPackageForm(true);
+                                        }}
+                                        className="px-3 py-2 border rounded hover:bg-gray-100 text-sm"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={() => deleteBidPackage(pkg.id)}
+                                        className="px-3 py-2 border border-red-300 text-red-600 rounded hover:bg-red-50 text-sm"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
+                    <Briefcase size={48} className="mx-auto mb-4 text-gray-400" />
+                    <p className="text-lg mb-2">No bid packages yet</p>
+                    <p className="text-sm mb-4">Create a bid package to start collecting vendor quotes</p>
+                    <button
+                        onClick={() => {
+                            setEditingBidPackage(null);
+                            setShowBidPackageForm(true);
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                        <Plus size={20} />
+                        Create Your First Bid Package
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
 
             const addContract = (contract) => {
                 setContracts([...contracts, contract]);
@@ -2687,6 +3332,17 @@ const GraphsView = () => {
                                 >
                                     Usage History
                                 </button>
+				<button
+      												 onClick={() => setActiveTab('bids')}
+       												className={`px-6 py-3 font-medium ${
+          				 								activeTab === 'bids'
+               													? 'border-b-2 border-blue-600 text-blue-600'
+               													: 'text-gray-600 hover:text-gray-800'
+       												}`}
+   											>
+       												Contract Bids
+   											</button>
+
                                 <button
     												onClick={() => setActiveTab('market')}
     												className={`px-6 py-3 font-medium ${
@@ -2712,6 +3368,7 @@ const GraphsView = () => {
                         
 				{activeTab === 'dashboard' && <Dashboard />}
 				{activeTab === 'contracts' && <ContractsView />}
+				{activeTab === 'bids' && <ContractBidsView />}
 				{activeTab === 'usage' && <UsageView />}
 				{activeTab === 'market' && <MarketPricesView />}
 				{activeTab === 'graphs' && <GraphsView />}
@@ -2757,6 +3414,39 @@ const GraphsView = () => {
                             currentInventory={inventory}
                         />
                     )}
+		   {showBidPackageForm && (
+       								<BidPackageForm
+           								onClose={() => {
+               									setShowBidPackageForm(false);
+               									setEditingBidPackage(null);
+           					  		}}
+           							onSubmit={(pkg) => {
+               									if (editingBidPackage) {
+                   									setBidPackages(bidPackages.map(p => p.id === pkg.id ? pkg : p));
+               									} else {
+                   									setBidPackages([...bidPackages, pkg]);
+               									}
+           							}}
+           							initialData={editingBidPackage}
+       							/>
+  						 )}
+		  {showBidForm && selectedBidPackage && (
+       							<BidForm
+           							onClose={() => {
+               								setShowBidForm(false);
+               								setEditingBid(null);
+           						}}
+           						onSubmit={(bid) => {
+               							if (editingBid) {
+                   							setBids(bids.map(b => b.id === bid.id ? bid : b));
+               						} else {
+                   							setBids([...bids, bid]);
+               						}
+           					}}
+           					bidPackage={selectedBidPackage}
+           					initialData={editingBid}
+       					/>
+  				 )}
 
                     {showImportDialog && (
                         <ImportDialog
