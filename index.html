@@ -2417,6 +2417,7 @@ return (
                         )}
 
                         {marketPrices.length > 0 && typeof ResponsiveContainer !== 'undefined' && (
+    {marketPrices.length > 0 && typeof ResponsiveContainer !== 'undefined' && (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Aluminum Price Trends */}
         <div className="bg-white p-6 rounded-lg shadow">
@@ -2439,23 +2440,6 @@ return (
                     <Line type="monotone" dataKey="Our Cost" stroke="#10b981" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
                 </LineChart>
             </ResponsiveContainer>
-            {(() => {
-                const latest = marketPrices[0];
-                if (latest && latest.ourAluminumCost) {
-                    const marketPrice = calculateMarketPrice('aluminum5052');
-                    const ourCost = parseFloat(latest.ourAluminumCost);
-                    const savings = marketPrice ? marketPrice.total - ourCost : 0;
-                    const savingsPercent = marketPrice ? (savings / marketPrice.total) * 100 : 0;
-                    return (
-                        <div className={`mt-4 p-3 rounded ${savings > 0 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                            <p className={`text-sm font-semibold ${savings > 0 ? 'text-green-900' : 'text-red-900'}`}>
-                                {savings > 0 ? '✓ Saving' : '⚠ Paying Premium'}: ${Math.abs(savings).toFixed(4)}/lb ({Math.abs(savingsPercent).toFixed(1)}%)
-                            </p>
-                        </div>
-                    );
-                }
-                return null;
-            })()}
         </div>
 
         {/* Stainless Steel Price Trends */}
@@ -2479,23 +2463,6 @@ return (
                     <Line type="monotone" dataKey="Our Cost" stroke="#10b981" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
                 </LineChart>
             </ResponsiveContainer>
-            {(() => {
-                const latest = marketPrices[0];
-                if (latest && latest.ourStainlessCost) {
-                    const marketPrice = calculateMarketPrice('stainless304');
-                    const ourCost = parseFloat(latest.ourStainlessCost);
-                    const savings = marketPrice ? marketPrice.total - ourCost : 0;
-                    const savingsPercent = marketPrice ? (savings / marketPrice.total) * 100 : 0;
-                    return (
-                        <div className={`mt-4 p-3 rounded ${savings > 0 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                            <p className={`text-sm font-semibold ${savings > 0 ? 'text-green-900' : 'text-red-900'}`}>
-                                {savings > 0 ? '✓ Saving' : '⚠ Paying Premium'}: ${Math.abs(savings).toFixed(4)}/lb ({Math.abs(savingsPercent).toFixed(1)}%)
-                            </p>
-                        </div>
-                    );
-                }
-                return null;
-            })()}
         </div>
     </div>
 )}
