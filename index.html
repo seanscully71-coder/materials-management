@@ -2463,42 +2463,7 @@ return (
                             </div>
                         )}
  
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="date" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Legend />
-                                        <Line type="monotone" dataKey="Al Market" stroke="#3b82f6" strokeWidth={2} />
- {/* Our cost line */}
-                                <Line 
-                                    type="monotone" 
-                                    dataKey="ourCost" 
-                                    stroke="#10b981" 
-                                    strokeWidth={3}
-                                    name="Our Cost"
-                                    dot={{ r: 4 }}
-                                    strokeDasharray="5 5"
-                                />
-                                        <Line type="monotone" dataKey="SS Market" stroke="#a855f7" strokeWidth={2} />
- {/* Our cost line */}
-                                <Line 
-                                    type="monotone" 
-                                    dataKey="ourCost" 
-                                    stroke="#10b981" 
-                                    strokeWidth={3}
-                                    name="Our Cost"
-                                    dot={{ r: 4 }}
-                                    strokeDasharray="5 5"
-                                />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
-                        )}
-                    </div>
-                );
-            };
-
-            const ContractsView = () => {
+             const ContractsView = () => {
                 return (
                     <div className="space-y-4">
                         <div className="flex justify-between items-center">
