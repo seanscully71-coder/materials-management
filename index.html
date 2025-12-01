@@ -2422,35 +2422,14 @@ return (
                                     <ResponsiveContainer width="100%" height={300}>
                                         <LineChart data={marketPrices.slice(0, 10).reverse().map(p => {
     // Calculate market price for THIS specific date's data
-    const priceDate = new Date(p.date);
-    const fetchStartDate = new Date('2025-11-19');
-    
-    let marketTotal = 0;
-    
-    if (priceDate >= fetchStartDate) {
-        // NEW ENTRIES (11/19/25 and later) - Use full formula
-        const nickelPerLb = parseFloat(p.nickel) || 0;
-        const chromePerLb = parseFloat(p.chrome) || 0;
-        const scrapIronPerLb = parseFloat(p.scrapIron) || 0;
-        const conversionPricing = parseFloat(p.conversionPricing) || 0;
-        
-        const nickelComponent = ((nickelPerLb / 2) * 1.2) * 0.08;
-        const chromeComponent = (chromePerLb - 0.35) * 0.18 * 1.2;
-        const scrapIronComponent = (((scrapIronPerLb * 2240) - 140) / 2240) * 0.719;
-        marketTotal = nickelComponent + chromeComponent + scrapIronComponent + conversionPricing;
-    } else {
-        // HISTORICAL ENTRIES (before 11/19/25) - Simple addition
-        const nickel = parseFloat(p.nickel) || 0;
-        const chrome = parseFloat(p.chrome) || 0;
-        const scrapIron = parseFloat(p.scrapIron) || 0;
-        const conversion = parseFloat(p.conversionPricing) || 0;
-        marketTotal = nickel + chrome + scrapIron + conversion;
-    }
+    const alBase = parseFloat(p.aluminumBase) || 0;
+    const midwest = parseFloat(p.midwestPremium) || 0;
+    const marketTotal = alBase + midwest;
     
     return {
         date: p.date,
         'Market Price': marketTotal > 0 ? marketTotal : null,
-        'Our Cost': p.ourStainlessCost ? parseFloat(p.ourStainlessCost) : null
+        'Our Cost': p.ourAluminumCost ? parseFloat(p.ourAluminumCost) : null
     };
 })}>
                                             <CartesianGrid strokeDasharray="3 3" />
@@ -2467,22 +2446,16 @@ return (
                                 <div className="bg-white p-6 rounded-lg shadow">
                                     <h3 className="text-lg font-semibold mb-4">Stainless Steel 304 2B - Market vs Our Cost</h3>
                                     <ResponsiveContainer width="100%" height={300}>
-                                        <LineChart data={marketPrices.slice(0, 10).reverse().map(p => {
+                                       <LineChart data={marketPrices.slice(0, 10).reverse().map(p => {
     // Calculate market price for THIS specific date's data
-    const nickelPerLb = parseFloat(p.nickel) || 0;
-    const chromePerLb = parseFloat(p.chrome) || 0;
-    const scrapIronPerLb = parseFloat(p.scrapIron) || 0;
-    const conversionPricing = parseFloat(p.conversionPricing) || 0;
-    
-    const nickelComponent = ((nickelPerLb / 2) * 1.2) * 0.08;
-    const chromeComponent = (chromePerLb - 0.35) * 0.18 * 1.2;
-    const scrapIronComponent = (((scrapIronPerLb * 2240) - 140) / 2240) * 0.719;
-    const marketTotal = nickelComponent + chromeComponent + scrapIronComponent + conversionPricing;
+    const alBase = parseFloat(p.aluminumBase) || 0;
+    const midwest = parseFloat(p.midwestPremium) || 0;
+    const marketTotal = alBase + midwest;
     
     return {
         date: p.date,
         'Market Price': marketTotal > 0 ? marketTotal : null,
-        'Our Cost': p.ourStainlessCost ? parseFloat(p.ourStainlessCost) : null
+        'Our Cost': p.ourAluminumCost ? parseFloat(p.ourAluminumCost) : null
     };
 })}>
                                             <CartesianGrid strokeDasharray="3 3" />
