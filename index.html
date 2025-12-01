@@ -2420,7 +2420,7 @@ return (
                                 <div className="bg-white p-6 rounded-lg shadow">
                                     <h3 className="text-lg font-semibold mb-4">Aluminum 5052 - Market vs Our Cost</h3>
                                     <ResponsiveContainer width="100%" height={300}>
-                                        <LineChart data={marketPrices.slice(0, 10).reverse().map(p => {
+                                        <LineChart data={marketPrices.slice(0, 365).reverse().map(p => {
     // Calculate market price for THIS specific date's data
     const alBase = parseFloat(p.aluminumBase) || 0;
     const midwest = parseFloat(p.midwestPremium) || 0;
@@ -2446,7 +2446,7 @@ return (
                                 <div className="bg-white p-6 rounded-lg shadow">
                                     <h3 className="text-lg font-semibold mb-4">Stainless Steel 304 2B - Market vs Our Cost</h3>
                                     <ResponsiveContainer width="100%" height={300}>
-                                      <LineChart data={marketPrices.slice(0, 10).reverse().map(p => {
+                                     <LineChart data={marketPrices.slice(0, 365).reverse().map(p => {
     // Calculate market price for THIS specific date's data
     const priceDate = new Date(p.date);
     const fetchStartDate = new Date('2025-11-19');
