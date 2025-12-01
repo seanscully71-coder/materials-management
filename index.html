@@ -2421,13 +2421,17 @@ return (
                                     <h3 className="text-lg font-semibold mb-4">Aluminum 5052 - Market vs Our Cost</h3>
                                     <ResponsiveContainer width="100%" height={300}>
                                         <LineChart data={marketPrices.slice(0, 10).reverse().map(p => {
-                                            const marketPrice = calculateMarketPrice('aluminum5052');
-                                            return {
-                                                date: p.date,
-                                                'Market Price': marketPrice ? marketPrice.total : null,
-                                                'Our Cost': p.ourAluminumCost ? parseFloat(p.ourAluminumCost) : null
-                                            };
-                                        })}>
+    // Calculate market price for THIS specific date's data
+    const alBase = parseFloat(p.aluminumBase) || 0;
+    const midwest = parseFloat(p.midwestPremium) || 0;
+    const marketTotal = alBase + midwest;
+    
+    return {
+        date: p.date,
+        'Market Price': marketTotal > 0 ? marketTotal : null,
+        'Our Cost': p.ourAluminumCost ? parseFloat(p.ourAluminumCost) : null
+    };
+})}>
                                             <CartesianGrid strokeDasharray="3 3" />
                                             <XAxis dataKey="date" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
                                             <YAxis label={{ value: '$/lb', angle: -90, position: 'insideLeft' }} domain={[1.5, 4.5]} />
@@ -2443,13 +2447,23 @@ return (
                                     <h3 className="text-lg font-semibold mb-4">Stainless Steel 304 2B - Market vs Our Cost</h3>
                                     <ResponsiveContainer width="100%" height={300}>
                                         <LineChart data={marketPrices.slice(0, 10).reverse().map(p => {
-                                            const marketPrice = calculateMarketPrice('stainless304');
-                                            return {
-                                                date: p.date,
-                                                'Market Price': marketPrice ? marketPrice.total : null,
-                                                'Our Cost': p.ourStainlessCost ? parseFloat(p.ourStainlessCost) : null
-                                            };
-                                        })}>
+    // Calculate market price for THIS specific date's data
+    const nickelPerLb = parseFloat(p.nickel) || 0;
+    const chromePerLb = parseFloat(p.chrome) || 0;
+    const scrapIronPerLb = parseFloat(p.scrapIron) || 0;
+    const conversionPricing = parseFloat(p.conversionPricing) || 0;
+    
+    const nickelComponent = ((nickelPerLb / 2) * 1.2) * 0.08;
+    const chromeComponent = (chromePerLb - 0.35) * 0.18 * 1.2;
+    const scrapIronComponent = (((scrapIronPerLb * 2240) - 140) / 2240) * 0.719;
+    const marketTotal = nickelComponent + chromeComponent + scrapIronComponent + conversionPricing;
+    
+    return {
+        date: p.date,
+        'Market Price': marketTotal > 0 ? marketTotal : null,
+        'Our Cost': p.ourStainlessCost ? parseFloat(p.ourStainlessCost) : null
+    };
+})}>
                                             <CartesianGrid strokeDasharray="3 3" />
                                             <XAxis dataKey="date" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
                                             <YAxis label={{ value: '$/lb', angle: -90, position: 'insideLeft' }} domain={[1, 2.5]} />
