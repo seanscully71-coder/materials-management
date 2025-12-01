@@ -1574,6 +1574,7 @@ const BidForm = ({ onClose, onSubmit, bidPackage, initialData = null }) => {
         </div>
     );
 };
+
 const ContractBidsView = () => {
     const addBidPackage = (pkg) => {
         setBidPackages([...bidPackages, pkg]);
@@ -3444,7 +3445,7 @@ relevantPrices.forEach(price => {
                                         </div>
                                     </div>
                                 );
-                            })}
+                           })}
                         </div>
                     </div>
                 )}
@@ -3554,6 +3555,9 @@ relevantPrices.forEach(price => {
         )}
     </div>
 );
+};
+
+              
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
