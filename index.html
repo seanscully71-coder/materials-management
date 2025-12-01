@@ -2771,34 +2771,37 @@ const GraphsView = () => {
             .sort((a, b) => new Date(a.date) - new Date(b.date));
 
         // Prepare Aluminum data
-        const alData = [];
-        const alContractPrices = [];
-        
-        relevantPrices.forEach(price => {
-            const marketPrice = calculateMarketPrice('aluminum5052');
-            if (marketPrice) {
-                const dataPoint = {
-                    date: price.date,
-                    market: marketPrice.total,
-                    ourCost: price.ourAluminumCost ? parseFloat(price.ourAluminumCost) : null
-                };
+const alData = [];
+const alContractPrices = [];
 
-                // Add contract prices that were active on this date
-                contracts
-                    .filter(c => c.material === 'aluminum5052' && c.status !== 'completed')
-                    .forEach((contract) => {
-                        const contractDate = new Date(contract.deliveryDate);
-                        const priceDate = new Date(price.date);
-                        
-                        if (contractDate <= priceDate || contract.status === 'active') {
-                            dataPoint[`${contract.vendor}`] = parseFloat(contract.pricePerLb);
-                            alContractPrices.push(parseFloat(contract.pricePerLb));
-                        }
-                    });
+relevantPrices.forEach(price => {
+    // Calculate market price for THIS specific date's data
+    const alBase = parseFloat(price.aluminumBase) || 0;
+    const midwest = parseFloat(price.midwestPremium) || 0;
+    const marketTotal = alBase + midwest;
+    
+    if (marketTotal > 0) {
+        const dataPoint = {
+            date: price.date,
+            market: marketTotal
+        };
 
-                alData.push(dataPoint);
-            }
-        });
+        // Add contract prices that were active on this date
+        contracts
+            .filter(c => c.material === 'aluminum5052' && c.status !== 'completed')
+            .forEach((contract) => {
+                const contractDate = new Date(contract.deliveryDate);
+                const priceDate = new Date(price.date);
+                
+                if (contractDate <= priceDate || contract.status === 'active') {
+                    dataPoint[`${contract.vendor}`] = parseFloat(contract.pricePerLb);
+                    alContractPrices.push(parseFloat(contract.pricePerLb));
+                }
+            });
+
+        alData.push(dataPoint);
+    }
+});
 
         // Calculate floor and ceiling for aluminum
         const alMarketPrices = alData.map(d => d.market).filter(p => p);
