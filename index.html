@@ -2104,13 +2104,7 @@ return (
                     Stainless: Math.round(usageByMonth[month].stainless304)
                 }));
 
-                const priceChartData = marketPrices.slice(0, 10).reverse().map(p => ({
-                    date: p.date,
-                    'Al Market': parseFloat(p.lmeAluminum || 0) + parseFloat(p.midwestPremium || 0),
-                    'SS Market': parseFloat(p.nasStainlessSurcharge || 0) || parseFloat(p.outokumpuSurcharge || 0)
-                }));
-
-                return (
+                   return (
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div className="bg-white p-6 rounded-lg shadow">
@@ -2422,11 +2416,89 @@ return (
                             </div>
                         )}
 
-                        {priceChartData.length > 0 && typeof ResponsiveContainer !== 'undefined' && (
-                            <div className="bg-white p-6 rounded-lg shadow">
-                                <h3 className="text-lg font-semibold mb-4">Market Price Trends</h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <LineChart data={priceChartData}>
+                        {marketPrices.length > 0 && typeof ResponsiveContainer !== 'undefined' && (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Aluminum Price Trends */}
+        <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4">Aluminum 5052 - Market vs Our Cost</h3>
+            <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={marketPrices.slice(0, 10).reverse().map(p => {
+                    const marketPrice = calculateMarketPrice('aluminum5052');
+                    return {
+                        date: p.date,
+                        'Market Price': marketPrice ? marketPrice.total : null,
+                        'Our Cost': p.ourAluminumCost ? parseFloat(p.ourAluminumCost) : null
+                    };
+                })}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
+                    <YAxis label={{ value: '$/lb', angle: -90, position: 'insideLeft' }} />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="Market Price" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="Our Cost" stroke="#10b981" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
+                </LineChart>
+            </ResponsiveContainer>
+            {(() => {
+                const latest = marketPrices[0];
+                if (latest && latest.ourAluminumCost) {
+                    const marketPrice = calculateMarketPrice('aluminum5052');
+                    const ourCost = parseFloat(latest.ourAluminumCost);
+                    const savings = marketPrice ? marketPrice.total - ourCost : 0;
+                    const savingsPercent = marketPrice ? (savings / marketPrice.total) * 100 : 0;
+                    return (
+                        <div className={`mt-4 p-3 rounded ${savings > 0 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                            <p className={`text-sm font-semibold ${savings > 0 ? 'text-green-900' : 'text-red-900'}`}>
+                                {savings > 0 ? '✓ Saving' : '⚠ Paying Premium'}: ${Math.abs(savings).toFixed(4)}/lb ({Math.abs(savingsPercent).toFixed(1)}%)
+                            </p>
+                        </div>
+                    );
+                }
+                return null;
+            })()}
+        </div>
+
+        {/* Stainless Steel Price Trends */}
+        <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4">Stainless Steel 304 2B - Market vs Our Cost</h3>
+            <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={marketPrices.slice(0, 10).reverse().map(p => {
+                    const marketPrice = calculateMarketPrice('stainless304');
+                    return {
+                        date: p.date,
+                        'Market Price': marketPrice ? marketPrice.total : null,
+                        'Our Cost': p.ourStainlessCost ? parseFloat(p.ourStainlessCost) : null
+                    };
+                })}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
+                    <YAxis label={{ value: '$/lb', angle: -90, position: 'insideLeft' }} />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="Market Price" stroke="#a855f7" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="Our Cost" stroke="#10b981" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
+                </LineChart>
+            </ResponsiveContainer>
+            {(() => {
+                const latest = marketPrices[0];
+                if (latest && latest.ourStainlessCost) {
+                    const marketPrice = calculateMarketPrice('stainless304');
+                    const ourCost = parseFloat(latest.ourStainlessCost);
+                    const savings = marketPrice ? marketPrice.total - ourCost : 0;
+                    const savingsPercent = marketPrice ? (savings / marketPrice.total) * 100 : 0;
+                    return (
+                        <div className={`mt-4 p-3 rounded ${savings > 0 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                            <p className={`text-sm font-semibold ${savings > 0 ? 'text-green-900' : 'text-red-900'}`}>
+                                {savings > 0 ? '✓ Saving' : '⚠ Paying Premium'}: ${Math.abs(savings).toFixed(4)}/lb ({Math.abs(savingsPercent).toFixed(1)}%)
+                            </p>
+                        </div>
+                    );
+                }
+                return null;
+            })()}
+        </div>
+    </div>
+)}
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis dataKey="date" />
                                         <YAxis />
