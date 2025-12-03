@@ -3088,7 +3088,7 @@ return (
                 const spokaneBids = scrapBids.filter(b => b.site === 'spokane').sort((a, b) => new Date(b.receivedDate) - new Date(a.receivedDate));
 
                 const convertBidToContract = (bid) => {
-                    if (confirm(\`Convert this bid from \${bid.vendor} to a scrap contract for \${bid.site === 'woodinville' ? 'Woodinville' : 'Spokane'}?\`)) {
+                    if (confirm(`Convert this bid from ${bid.vendor} to a scrap contract for ${bid.site === 'woodinville' ? 'Woodinville' : 'Spokane'}?`)) {
                         const newContract = {
                             id: Date.now(),
                             site: bid.site,
@@ -3098,7 +3098,7 @@ return (
                             steelCRSPrice: bid.steelCRSPrice,
                             startDate: new Date().toISOString().split('T')[0],
                             endDate: bid.validUntil || '',
-                            notes: \`Converted from bid on \${bid.receivedDate}. \${bid.notes || ''}\`,
+                            notes: `Converted from bid on ${bid.receivedDate}. ${bid.notes || ''}`,
                             status: 'active'
                         };
                         setScrapContracts([...scrapContracts, newContract]);
@@ -3156,18 +3156,18 @@ return (
                                         <div className="space-y-2">
                                             <div className="flex justify-between text-sm border-b pb-2">
                                                 <span className="text-gray-600">Aluminum 5052:</span>
-                                                <span className="font-semibold">\${woodinvilleContract.aluminum5052Price || 'N/A'}/lb</span>
+                                                <span className="font-semibold">${woodinvilleContract.aluminum5052Price || 'N/A'}/lb</span>
                                             </div>
                                             <div className="flex justify-between text-sm border-b pb-2">
                                                 <span className="text-gray-600">Stainless 304:</span>
-                                                <span className="font-semibold">\${woodinvilleContract.stainless304Price || 'N/A'}/lb</span>
+                                                <span className="font-semibold">${woodinvilleContract.stainless304Price || 'N/A'}/lb</span>
                                             </div>
                                             <div className="flex justify-between text-sm border-b pb-2">
                                                 <span className="text-gray-600">Steel CRS:</span>
-                                                <span className="font-semibold">\${woodinvilleContract.steelCRSPrice || 'N/A'}/lb</span>
+                                                <span className="font-semibold">${woodinvilleContract.steelCRSPrice || 'N/A'}/lb</span>
                                             </div>
                                             <div className="text-xs text-gray-500 mt-3">
-                                                Contract: {woodinvilleContract.startDate} {woodinvilleContract.endDate && \`to \${woodinvilleContract.endDate}\`}
+                                                Contract: {woodinvilleContract.startDate} {woodinvilleContract.endDate && `to ${woodinvilleContract.endDate}`}
                                             </div>
                                             {woodinvilleContract.notes && (
                                                 <div className="text-xs text-gray-600 mt-2">
@@ -3209,18 +3209,18 @@ return (
                                         <div className="space-y-2">
                                             <div className="flex justify-between text-sm border-b pb-2">
                                                 <span className="text-gray-600">Aluminum 5052:</span>
-                                                <span className="font-semibold">\${spokaneContract.aluminum5052Price || 'N/A'}/lb</span>
+                                                <span className="font-semibold">${spokaneContract.aluminum5052Price || 'N/A'}/lb</span>
                                             </div>
                                             <div className="flex justify-between text-sm border-b pb-2">
                                                 <span className="text-gray-600">Stainless 304:</span>
-                                                <span className="font-semibold">\${spokaneContract.stainless304Price || 'N/A'}/lb</span>
+                                                <span className="font-semibold">${spokaneContract.stainless304Price || 'N/A'}/lb</span>
                                             </div>
                                             <div className="flex justify-between text-sm border-b pb-2">
                                                 <span className="text-gray-600">Steel CRS:</span>
-                                                <span className="font-semibold">\${spokaneContract.steelCRSPrice || 'N/A'}/lb</span>
+                                                <span className="font-semibold">${spokaneContract.steelCRSPrice || 'N/A'}/lb</span>
                                             </div>
                                             <div className="text-xs text-gray-500 mt-3">
-                                                Contract: {spokaneContract.startDate} {spokaneContract.endDate && \`to \${spokaneContract.endDate}\`}
+                                                Contract: {spokaneContract.startDate} {spokaneContract.endDate && `to ${spokaneContract.endDate}`}
                                             </div>
                                             {spokaneContract.notes && (
                                                 <div className="text-xs text-gray-600 mt-2">
@@ -3308,15 +3308,15 @@ return (
                                                     <div className="grid grid-cols-3 gap-4 text-sm">
                                                         <div>
                                                             <span className="text-gray-600">Aluminum 5052:</span>
-                                                            <p className="font-semibold text-blue-700">\${bid.aluminum5052Price || 'N/A'}/lb</p>
+                                                            <p className="font-semibold text-blue-700">${bid.aluminum5052Price || 'N/A'}/lb</p>
                                                         </div>
                                                         <div>
                                                             <span className="text-gray-600">Stainless 304:</span>
-                                                            <p className="font-semibold text-blue-700">\${bid.stainless304Price || 'N/A'}/lb</p>
+                                                            <p className="font-semibold text-blue-700">${bid.stainless304Price || 'N/A'}/lb</p>
                                                         </div>
                                                         <div>
                                                             <span className="text-gray-600">Steel CRS:</span>
-                                                            <p className="font-semibold text-blue-700">\${bid.steelCRSPrice || 'N/A'}/lb</p>
+                                                            <p className="font-semibold text-blue-700">${bid.steelCRSPrice || 'N/A'}/lb</p>
                                                         </div>
                                                     </div>
                                                     {bid.notes && (
@@ -3400,15 +3400,15 @@ return (
                                                     <div className="grid grid-cols-3 gap-4 text-sm">
                                                         <div>
                                                             <span className="text-gray-600">Aluminum 5052:</span>
-                                                            <p className="font-semibold text-purple-700">\${bid.aluminum5052Price || 'N/A'}/lb</p>
+                                                            <p className="font-semibold text-purple-700">${bid.aluminum5052Price || 'N/A'}/lb</p>
                                                         </div>
                                                         <div>
                                                             <span className="text-gray-600">Stainless 304:</span>
-                                                            <p className="font-semibold text-purple-700">\${bid.stainless304Price || 'N/A'}/lb</p>
+                                                            <p className="font-semibold text-purple-700">${bid.stainless304Price || 'N/A'}/lb</p>
                                                         </div>
                                                         <div>
                                                             <span className="text-gray-600">Steel CRS:</span>
-                                                            <p className="font-semibold text-purple-700">\${bid.steelCRSPrice || 'N/A'}/lb</p>
+                                                            <p className="font-semibold text-purple-700">${bid.steelCRSPrice || 'N/A'}/lb</p>
                                                         </div>
                                                     </div>
                                                     {bid.notes && (
