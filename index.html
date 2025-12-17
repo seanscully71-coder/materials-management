@@ -2490,10 +2490,18 @@ return (
                                     <h3 className="text-lg font-semibold mb-4">Aluminum 5052 - Market vs Our Cost</h3>
                                     <ResponsiveContainer width="100%" height={300}>
                                         <LineChart data={marketPrices.slice(0, 10).reverse().map(p => {
-    // Calculate market price for THIS specific date's data
+    // Calculate market price for THIS specific date's data using the current formula
     const alBase = parseFloat(p.aluminumBase) || 0;
     const midwest = parseFloat(p.midwestPremium) || 0;
-    const marketTotal = alBase + midwest;
+    const lme = parseFloat(p.lmeAluminum) || 0;
+    
+    // Apply formula: ((Midwest - Base) / Midwest) + (LME + Base)
+    let marketTotal = 0;
+    if (midwest !== 0) {
+        marketTotal = ((midwest - alBase) / midwest) + (lme + alBase);
+    } else {
+        marketTotal = lme + alBase;
+    }
     
     return {
         date: p.date,
@@ -2503,7 +2511,7 @@ return (
 })}>
                                             <CartesianGrid strokeDasharray="3 3" />
                                             <XAxis dataKey="date" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
-                                            <YAxis label={{ value: '$/lb', angle: -90, position: 'insideLeft' }} domain={[2.0, 4.0]} />
+                                            <YAxis label={{ value: '$/lb', angle: -90, position: 'insideLeft' }} domain={[2.5, 3.5]} />
                                             <Tooltip />
                                             <Legend />
                                             <Line type="monotone" dataKey="Market Price" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
