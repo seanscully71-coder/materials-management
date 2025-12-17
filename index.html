@@ -2043,7 +2043,8 @@ return (
     if (!latest) return null;
 
     if (material === 'aluminum5052') {
-        // Aluminum calculation: ((Midwest - Base) / Midwest) + LME
+        // Aluminum calculation: ((Midwest - Base) / Midwest) + (LME + Base)
+        // This pulls additional costs from Midwest Premium and adds LME + Base for real total
         const base = parseFloat(latest.aluminumBase) || 0;
         const midwest = parseFloat(latest.midwestPremium) || 0;
         const lme = parseFloat(latest.lmeAluminum) || 0;
@@ -2051,10 +2052,10 @@ return (
         // Calculate total using new formula
         let total = 0;
         if (midwest !== 0) {
-            total = ((midwest - base) / midwest) + lme;
+            total = ((midwest - base) / midwest) + (lme + base);
         } else {
             // Fallback if midwest is 0 to avoid division by zero
-            total = lme;
+            total = lme + base;
         }
         
         return {
