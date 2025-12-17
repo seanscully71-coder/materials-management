@@ -298,6 +298,10 @@ console.log('Recharts check:', {
 	    const [editingScrapContract, setEditingScrapContract] = useState(null);
 	    const [editingScrapBid, setEditingScrapBid] = useState(null);
 	    const [expandedSite, setExpandedSite] = useState(null);
+	    const [scrapWeightTickets, setScrapWeightTickets] = useState([]);
+	    const [showWeightTicketForm, setShowWeightTicketForm] = useState(false);
+	    const [editingWeightTicket, setEditingWeightTicket] = useState(null);
+	    const [expandedWeightTicketSite, setExpandedWeightTicketSite] = useState(null);
 	   
             // Load data from localStorage
             useEffect(() => {
@@ -311,10 +315,12 @@ console.log('Recharts check:', {
 		const savedBids = localStorage.getItem('bids');
 		const savedScrapContracts = localStorage.getItem('scrapContracts');
 		const savedScrapBids = localStorage.getItem('scrapBids');
+		const savedScrapWeightTickets = localStorage.getItem('scrapWeightTickets');
 		if (savedBidPackages) setBidPackages(JSON.parse(savedBidPackages));
 		if (savedBids) setBids(JSON.parse(savedBids));
 		if (savedScrapContracts) setScrapContracts(JSON.parse(savedScrapContracts));
 		if (savedScrapBids) setScrapBids(JSON.parse(savedScrapBids));
+		if (savedScrapWeightTickets) setScrapWeightTickets(JSON.parse(savedScrapWeightTickets));
             
                 if (savedContracts) setContracts(JSON.parse(savedContracts));
                 if (savedInventory) setInventory(JSON.parse(savedInventory));
@@ -356,6 +362,10 @@ console.log('Recharts check:', {
    	    useEffect(() => {
        		localStorage.setItem('scrapBids', JSON.stringify(scrapBids));
    	    }, [scrapBids]);
+
+   	    useEffect(() => {
+       		localStorage.setItem('scrapWeightTickets', JSON.stringify(scrapWeightTickets));
+   	    }, [scrapWeightTickets]);
 	
             // Export all data to JSON file
             const exportAllData = () => {
@@ -369,8 +379,9 @@ console.log('Recharts check:', {
    			bids: bids,
    			scrapContracts: scrapContracts,
    			scrapBids: scrapBids,
+   			scrapWeightTickets: scrapWeightTickets,
                     exportDate: new Date().toISOString(),
-                    version: '1.2'
+                    version: '1.3'
                 };
                 
                 const dataStr = JSON.stringify(allData, null, 2);
@@ -403,6 +414,7 @@ console.log('Recharts check:', {
    			if (data.bids) setBids(data.bids);
    			if (data.scrapContracts) setScrapContracts(data.scrapContracts);
    			if (data.scrapBids) setScrapBids(data.scrapBids);
+   			if (data.scrapWeightTickets) setScrapWeightTickets(data.scrapWeightTickets);
                         
                         alert(`Data imported successfully!\nExported on: ${data.exportDate ? new Date(data.exportDate).toLocaleString() : 'Unknown'}`);
                     } catch (error) {
@@ -2031,15 +2043,25 @@ return (
     if (!latest) return null;
 
     if (material === 'aluminum5052') {
-        // Aluminum calculation remains the same
+        // Aluminum calculation: ((Midwest - Base) / Midwest) + LME
         const base = parseFloat(latest.aluminumBase) || 0;
         const midwest = parseFloat(latest.midwestPremium) || 0;
         const lme = parseFloat(latest.lmeAluminum) || 0;
+        
+        // Calculate total using new formula
+        let total = 0;
+        if (midwest !== 0) {
+            total = ((midwest - base) / midwest) + lme;
+        } else {
+            // Fallback if midwest is 0 to avoid division by zero
+            total = lme;
+        }
+        
         return {
             lme: lme,
             base: base,
             midwest: midwest,
-            total: base + midwest
+            total: total
         };
     } else if (material === 'stainless304') {
         // 304 Stainless Steel calculation with alloy composition
@@ -3069,6 +3091,191 @@ return (
                                             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                                         >
                                             {initialData ? 'Update Bid' : 'Add Bid'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            // Weight Ticket Form Component
+            const WeightTicketForm = ({ onClose, onSubmit, site, initialData = null }) => {
+                const [formData, setFormData] = useState(initialData || {
+                    id: Date.now(),
+                    site: site,
+                    supplier: '',
+                    date: new Date().toISOString().split('T')[0],
+                    controlNumber: '',
+                    commodity: '',
+                    description: '',
+                    grossWeight: '',
+                    netWeight: '',
+                    price: '',
+                    unitOfMeasure: 'lbs',
+                    totalAmount: ''
+                });
+
+                // Auto-calculate total amount when price or net weight changes
+                useEffect(() => {
+                    if (formData.price && formData.netWeight) {
+                        const total = (parseFloat(formData.price) * parseFloat(formData.netWeight)).toFixed(2);
+                        setFormData(prev => ({...prev, totalAmount: total}));
+                    }
+                }, [formData.price, formData.netWeight]);
+
+                const handleSubmit = (e) => {
+                    e.preventDefault();
+                    onSubmit(formData);
+                    onClose();
+                };
+
+                return (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                            <div className="p-6">
+                                <h2 className="text-2xl font-bold mb-4">
+                                    {initialData ? 'Edit Weight Ticket' : `Add Weight Ticket - ${site === 'woodinville' ? 'Woodinville' : 'Spokane'}`}
+                                </h2>
+                                <form onSubmit={handleSubmit} className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Supplier</label>
+                                            <input
+                                                type="text"
+                                                value={formData.supplier}
+                                                onChange={(e) => setFormData({...formData, supplier: e.target.value})}
+                                                className="w-full border rounded px-3 py-2"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Date</label>
+                                            <input
+                                                type="date"
+                                                value={formData.date}
+                                                onChange={(e) => setFormData({...formData, date: e.target.value})}
+                                                className="w-full border rounded px-3 py-2"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Control #</label>
+                                            <input
+                                                type="text"
+                                                value={formData.controlNumber}
+                                                onChange={(e) => setFormData({...formData, controlNumber: e.target.value})}
+                                                className="w-full border rounded px-3 py-2"
+                                                placeholder="Ticket control number"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Commodity</label>
+                                            <input
+                                                type="text"
+                                                value={formData.commodity}
+                                                onChange={(e) => setFormData({...formData, commodity: e.target.value})}
+                                                className="w-full border rounded px-3 py-2"
+                                                placeholder="e.g., Aluminum, Stainless, Steel"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Description</label>
+                                        <input
+                                            type="text"
+                                            value={formData.description}
+                                            onChange={(e) => setFormData({...formData, description: e.target.value})}
+                                            className="w-full border rounded px-3 py-2"
+                                            placeholder="Detailed description of material"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Gross Weight</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={formData.grossWeight}
+                                                onChange={(e) => setFormData({...formData, grossWeight: e.target.value})}
+                                                className="w-full border rounded px-3 py-2"
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Net Weight</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={formData.netWeight}
+                                                onChange={(e) => setFormData({...formData, netWeight: e.target.value})}
+                                                className="w-full border rounded px-3 py-2"
+                                                placeholder="0.00"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Unit of Measure</label>
+                                            <select
+                                                value={formData.unitOfMeasure}
+                                                onChange={(e) => setFormData({...formData, unitOfMeasure: e.target.value})}
+                                                className="w-full border rounded px-3 py-2"
+                                            >
+                                                <option value="lbs">lbs</option>
+                                                <option value="tons">tons</option>
+                                                <option value="kg">kg</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 bg-blue-50 p-4 rounded">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Price per Unit ($)</label>
+                                            <input
+                                                type="number"
+                                                step="0.0001"
+                                                value={formData.price}
+                                                onChange={(e) => setFormData({...formData, price: e.target.value})}
+                                                className="w-full border rounded px-3 py-2"
+                                                placeholder="0.0000"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Total Amount ($)</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={formData.totalAmount}
+                                                onChange={(e) => setFormData({...formData, totalAmount: e.target.value})}
+                                                className="w-full border rounded px-3 py-2 bg-gray-100"
+                                                placeholder="Auto-calculated"
+                                                readOnly
+                                            />
+                                            <p className="text-xs text-gray-500 mt-1">Auto-calculated from price × net weight</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end gap-2 pt-4">
+                                        <button
+                                            type="button"
+                                            onClick={onClose}
+                                            className="px-4 py-2 border rounded hover:bg-gray-100"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                        >
+                                            {initialData ? 'Update Ticket' : 'Add Ticket'}
                                         </button>
                                     </div>
                                 </form>
