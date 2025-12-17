@@ -3678,39 +3678,43 @@ const GraphsView = () => {
 
         // Prepare Aluminum data
         const alData = [];
-        const alContractPrices = [];
+        const alMarketPrices = [];
+        const alOurCosts = [];
         
         relevantPrices.forEach(price => {
-            const marketPrice = calculateMarketPrice('aluminum5052');
-            if (marketPrice) {
-                const dataPoint = {
-                    date: price.date,
-                    market: marketPrice.total,
-                    ourCost: price.ourAluminumCost ? parseFloat(price.ourAluminumCost) : null
-                };
-
-                // Add contract prices that were active on this date
-                contracts
-                    .filter(c => c.material === 'aluminum5052' && c.status !== 'completed')
-                    .forEach((contract) => {
-                        const contractDate = new Date(contract.deliveryDate);
-                        const priceDate = new Date(price.date);
-                        
-                        if (contractDate <= priceDate || contract.status === 'active') {
-                            dataPoint[`${contract.vendor}`] = parseFloat(contract.pricePerLb);
-                            alContractPrices.push(parseFloat(contract.pricePerLb));
-                        }
-                    });
-
-                alData.push(dataPoint);
+            // Calculate market price for THIS specific date's data
+            const alBase = parseFloat(price.aluminumBase) || 0;
+            const midwest = parseFloat(price.midwestPremium) || 0;
+            const lme = parseFloat(price.lmeAluminum) || 0;
+            
+            let marketTotal = 0;
+            if (midwest !== 0) {
+                marketTotal = ((midwest - alBase) / midwest) + (lme + alBase);
+            } else {
+                marketTotal = lme + alBase;
             }
+            
+            const ourCost = price.ourAluminumCost ? parseFloat(price.ourAluminumCost) : null;
+            
+            alData.push({
+                date: price.date,
+                'Market Price': marketTotal > 0 ? marketTotal : null,
+                'Our Cost': ourCost
+            });
+            
+            if (marketTotal > 0) alMarketPrices.push(marketTotal);
+            if (ourCost) alOurCosts.push(ourCost);
         });
 
         // Calculate floor and ceiling for aluminum
-        const alMarketPrices = alData.map(d => d.market).filter(p => p);
-        if (alMarketPrices.length > 0 && alContractPrices.length > 0) {
-            setAlFloor(Math.min(...alContractPrices));
+        if (alMarketPrices.length > 0) {
             setAlCeiling(Math.max(...alMarketPrices));
+            // Floor is the lowest "Our Cost" (best contract price we have)
+            if (alOurCosts.length > 0) {
+                setAlFloor(Math.min(...alOurCosts));
+            } else {
+                setAlFloor(null);
+            }
         } else {
             setAlFloor(null);
             setAlCeiling(null);
@@ -3720,38 +3724,42 @@ const GraphsView = () => {
 
         // Prepare Stainless data
         const ssData = [];
-        const ssContractPrices = [];
+        const ssMarketPrices = [];
+        const ssOurCosts = [];
         
         relevantPrices.forEach(price => {
-            const marketPrice = calculateMarketPrice('stainless304');
-            if (marketPrice) {
-                const dataPoint = {
-                    date: price.date,
-                    market: marketPrice.total,
-                    ourCost: price.ourStainlessCost ? parseFloat(price.ourStainlessCost) : null
-                };
-
-                contracts
-                    .filter(c => c.material === 'stainless304' && c.status !== 'completed')
-                    .forEach((contract) => {
-                        const contractDate = new Date(contract.deliveryDate);
-                        const priceDate = new Date(price.date);
-                        
-                        if (contractDate <= priceDate || contract.status === 'active') {
-                            dataPoint[`${contract.vendor}`] = parseFloat(contract.pricePerLb);
-                            ssContractPrices.push(parseFloat(contract.pricePerLb));
-                        }
-                    });
-
-                ssData.push(dataPoint);
-            }
+            // Calculate market price for THIS specific date's data
+            const nickelPerLb = parseFloat(price.nickel) || 0;
+            const chromePerLb = parseFloat(price.chrome) || 0;
+            const scrapIronPerLb = parseFloat(price.scrapIron) || 0;
+            const conversionPricing = parseFloat(price.conversionPricing) || 0;
+            
+            const nickelComponent = ((nickelPerLb / 2) * 1.2) * 0.08;
+            const chromeComponent = (chromePerLb - 0.35) * 0.18 * 1.2;
+            const scrapIronComponent = (((scrapIronPerLb * 2240) - 140) / 2240) * 0.719;
+            const marketTotal = nickelComponent + chromeComponent + scrapIronComponent + conversionPricing;
+            
+            const ourCost = price.ourStainlessCost ? parseFloat(price.ourStainlessCost) : null;
+            
+            ssData.push({
+                date: price.date,
+                'Market Price': marketTotal > 0 ? marketTotal : null,
+                'Our Cost': ourCost
+            });
+            
+            if (marketTotal > 0) ssMarketPrices.push(marketTotal);
+            if (ourCost) ssOurCosts.push(ourCost);
         });
 
         // Calculate floor and ceiling for stainless
-        const ssMarketPrices = ssData.map(d => d.market).filter(p => p);
-        if (ssMarketPrices.length > 0 && ssContractPrices.length > 0) {
-            setSsFloor(Math.min(...ssContractPrices));
+        if (ssMarketPrices.length > 0) {
             setSsCeiling(Math.max(...ssMarketPrices));
+            // Floor is the lowest "Our Cost" (best contract price we have)
+            if (ssOurCosts.length > 0) {
+                setSsFloor(Math.min(...ssOurCosts));
+            } else {
+                setSsFloor(null);
+            }
         } else {
             setSsFloor(null);
             setSsCeiling(null);
@@ -3839,7 +3847,7 @@ const GraphsView = () => {
 
             {/* Aluminum Graph */}
             <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-lg font-semibold mb-4">Aluminum 5052 - Contract Prices vs Market</h3>
+                <h3 className="text-lg font-semibold mb-4">Aluminum 5052 - Market vs Our Cost</h3>
                 
                 {aluminumData.length > 0 ? (
                     <>
@@ -3849,7 +3857,7 @@ const GraphsView = () => {
                                 <div className="flex items-center gap-2">
                                     <div className="w-4 h-0.5 bg-green-600"></div>
                                     <span className="text-gray-700">
-                                        Floor (Best Contract): <span className="font-semibold text-green-600">${alFloor.toFixed(4)}/lb</span>
+                                        Floor (Best Contract Price): <span className="font-semibold text-green-600">${alFloor.toFixed(4)}/lb</span>
                                     </span>
                                 </div>
                             )}
@@ -3857,7 +3865,7 @@ const GraphsView = () => {
                                 <div className="flex items-center gap-2">
                                     <div className="w-4 h-0.5 bg-red-600"></div>
                                     <span className="text-gray-700">
-                                        Ceiling (Peak Market): <span className="font-semibold text-red-600">${alCeiling.toFixed(4)}/lb</span>
+                                        Ceiling (Peak Market Price): <span className="font-semibold text-red-600">${alCeiling.toFixed(4)}/lb</span>
                                     </span>
                                 </div>
                             )}
@@ -3879,94 +3887,63 @@ const GraphsView = () => {
                                     domain={['auto', 'auto']}
                                     tick={{ fontSize: 12 }}
                                 />
-                                <Tooltip content={<CustomTooltip />} />
+                                <Tooltip />
                                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
                                 
-                                {/* Floor line */}
+                                {/* Floor line (green dashed) */}
                                 {alFloor !== null && (
                                     <ReferenceLine 
                                         y={alFloor} 
                                         stroke="#16a34a" 
-                                        strokeDasharray="3 3" 
-                                        label={{ value: 'Floor', position: 'right', fill: '#16a34a', fontSize: 12 }}
+                                        strokeDasharray="5 5"
+                                        strokeWidth={2}
+                                        label={{ value: 'Floor (Support)', position: 'right', fill: '#16a34a', fontSize: 11 }}
                                     />
                                 )}
                                 
-                                {/* Ceiling line */}
+                                {/* Ceiling line (red dashed) */}
                                 {alCeiling !== null && (
                                     <ReferenceLine 
                                         y={alCeiling} 
                                         stroke="#dc2626" 
-                                        strokeDasharray="3 3" 
-                                        label={{ value: 'Ceiling', position: 'right', fill: '#dc2626', fontSize: 12 }}
+                                        strokeDasharray="5 5"
+                                        strokeWidth={2}
+                                        label={{ value: 'Ceiling (Resistance)', position: 'right', fill: '#dc2626', fontSize: 11 }}
                                     />
                                 )}
                                 
-                                {/* Market price line */}
+                                {/* Market price line (blue solid) */}
                                 <Line 
                                     type="monotone" 
-                                    dataKey="market" 
+                                    dataKey="Market Price" 
                                     stroke="#3b82f6" 
                                     strokeWidth={3}
-                                    name="Market Price"
                                     dot={{ r: 4 }}
                                 />
                                 
-                                {/* Contract lines */}
-                                {getAluminumVendors().map((vendor, idx) => (
-                                    <Line 
-                                        key={vendor}
-                                        type="monotone" 
-                                        dataKey={vendor} 
-                                        stroke={contractColors[idx % contractColors.length]}
-                                        strokeWidth={2}
-                                        name={vendor}
-                                        dot={{ r: 3 }}
-                                        connectNulls
-                                    />
-                                ))}
+                                {/* Our Cost line (green dashed) */}
+                                <Line 
+                                    type="monotone" 
+                                    dataKey="Our Cost" 
+                                    stroke="#10b981" 
+                                    strokeWidth={2}
+                                    strokeDasharray="5 5"
+                                    dot={{ r: 3 }}
+                                />
                             </LineChart>
                         </ResponsiveContainer>
-                        
-                        {/* Vendor Summary Cards */}
-                        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {getAluminumVendors().map((vendor, idx) => {
-                                const contract = contracts.find(c => c.vendor === vendor && c.material === 'aluminum5052');
-                                const latestMarket = aluminumData.length > 0 ? aluminumData[aluminumData.length - 1].market : 0;
-                                const savings = latestMarket ? (latestMarket - parseFloat(contract?.pricePerLb || 0)) * 100 : 0;
-                                const savingsPercent = latestMarket ? (savings / 100 / latestMarket) * 100 : 0;
-                                
-                                return (
-                                    <div key={vendor} className="border rounded p-3 bg-gray-50">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <div 
-                                                className="w-3 h-3 rounded-full" 
-                                                style={{ backgroundColor: contractColors[idx % contractColors.length] }}
-                                            ></div>
-                                            <span className="font-semibold text-sm">{vendor}</span>
-                                        </div>
-                                        <div className="text-xs text-gray-600">
-                                            Contract: ${contract?.pricePerLb}/lb
-                                        </div>
-                                        <div className={`text-xs font-semibold mt-1 ${savings > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            {savings > 0 ? '↓' : '↑'} ${Math.abs(savings).toFixed(4)} ({Math.abs(savingsPercent).toFixed(1)}%)
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
                     </>
                 ) : (
                     <div className="text-center py-12 text-gray-500">
                         <p>No data available for the selected time period.</p>
-                        <p className="text-sm mt-2">Add market prices and contracts to see the graph.</p>
+                        <p className="text-sm mt-2">Add market prices to see the graph.</p>
                     </div>
                 )}
             </div>
 
-            {/* Stainless Steel Graph - Similar structure as Aluminum */}
+            {/* Stainless Steel Graph */}
             <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-lg font-semibold mb-4">Stainless Steel 304 2B - Contract Prices vs Market</h3>
+                <h3 className="text-lg font-semibold mb-4">Stainless Steel 304 2B - Market vs Our Cost</h3>
                 
                 {stainlessData.length > 0 ? (
                     <>
@@ -3975,7 +3952,7 @@ const GraphsView = () => {
                                 <div className="flex items-center gap-2">
                                     <div className="w-4 h-0.5 bg-green-600"></div>
                                     <span className="text-gray-700">
-                                        Floor (Best Contract): <span className="font-semibold text-green-600">${ssFloor.toFixed(4)}/lb</span>
+                                        Floor (Best Contract Price): <span className="font-semibold text-green-600">${ssFloor.toFixed(4)}/lb</span>
                                     </span>
                                 </div>
                             )}
@@ -3983,7 +3960,7 @@ const GraphsView = () => {
                                 <div className="flex items-center gap-2">
                                     <div className="w-4 h-0.5 bg-red-600"></div>
                                     <span className="text-gray-700">
-                                        Ceiling (Peak Market): <span className="font-semibold text-red-600">${ssCeiling.toFixed(4)}/lb</span>
+                                        Ceiling (Peak Market Price): <span className="font-semibold text-red-600">${ssCeiling.toFixed(4)}/lb</span>
                                     </span>
                                 </div>
                             )}
@@ -4004,82 +3981,56 @@ const GraphsView = () => {
                                     domain={['auto', 'auto']}
                                     tick={{ fontSize: 12 }}
                                 />
-                                <Tooltip content={<CustomTooltip />} />
+                                <Tooltip />
                                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
                                 
+                                {/* Floor line (green dashed) */}
                                 {ssFloor !== null && (
                                     <ReferenceLine 
                                         y={ssFloor} 
                                         stroke="#16a34a" 
-                                        strokeDasharray="3 3" 
-                                        label={{ value: 'Floor', position: 'right', fill: '#16a34a', fontSize: 12 }}
+                                        strokeDasharray="5 5"
+                                        strokeWidth={2}
+                                        label={{ value: 'Floor (Support)', position: 'right', fill: '#16a34a', fontSize: 11 }}
                                     />
                                 )}
                                 
+                                {/* Ceiling line (red dashed) */}
                                 {ssCeiling !== null && (
                                     <ReferenceLine 
                                         y={ssCeiling} 
                                         stroke="#dc2626" 
-                                        strokeDasharray="3 3" 
-                                        label={{ value: 'Ceiling', position: 'right', fill: '#dc2626', fontSize: 12 }}
+                                        strokeDasharray="5 5"
+                                        strokeWidth={2}
+                                        label={{ value: 'Ceiling (Resistance)', position: 'right', fill: '#dc2626', fontSize: 11 }}
                                     />
                                 )}
                                 
+                                {/* Market price line (purple solid) */}
                                 <Line 
                                     type="monotone" 
-                                    dataKey="market" 
+                                    dataKey="Market Price" 
                                     stroke="#a855f7" 
                                     strokeWidth={3}
-                                    name="Market Price"
                                     dot={{ r: 4 }}
                                 />
                                 
-                                {getStainlessVendors().map((vendor, idx) => (
-                                    <Line 
-                                        key={vendor}
-                                        type="monotone" 
-                                        dataKey={vendor} 
-                                        stroke={contractColors[idx % contractColors.length]}
-                                        strokeWidth={2}
-                                        name={vendor}
-                                        dot={{ r: 3 }}
-                                        connectNulls
-                                    />
-                                ))}
+                                {/* Our Cost line (green dashed) */}
+                                <Line 
+                                    type="monotone" 
+                                    dataKey="Our Cost" 
+                                    stroke="#10b981" 
+                                    strokeWidth={2}
+                                    strokeDasharray="5 5"
+                                    dot={{ r: 3 }}
+                                />
                             </LineChart>
                         </ResponsiveContainer>
-                        
-                        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {getStainlessVendors().map((vendor, idx) => {
-                                const contract = contracts.find(c => c.vendor === vendor && c.material === 'stainless304');
-                                const latestMarket = stainlessData.length > 0 ? stainlessData[stainlessData.length - 1].market : 0;
-                                const savings = latestMarket ? (latestMarket - parseFloat(contract?.pricePerLb || 0)) * 100 : 0;
-                                const savingsPercent = latestMarket ? (savings / 100 / latestMarket) * 100 : 0;
-                                
-                                return (
-                                    <div key={vendor} className="border rounded p-3 bg-gray-50">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <div 
-                                                className="w-3 h-3 rounded-full" 
-                                                style={{ backgroundColor: contractColors[idx % contractColors.length] }}
-                                            ></div>
-                                            <span className="font-semibold text-sm">{vendor}</span>
-                                        </div>
-                                        <div className="text-xs text-gray-600">
-                                            Contract: ${contract?.pricePerLb}/lb
-                                        </div>
-                                        <div className={`text-xs font-semibold mt-1 ${savings > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            {savings > 0 ? '↓' : '↑'} ${Math.abs(savings).toFixed(4)} ({Math.abs(savingsPercent).toFixed(1)}%)
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
                     </>
                 ) : (
                     <div className="text-center py-12 text-gray-500">
                         <p>No data available for the selected time period.</p>
-                        <p className="text-sm mt-2">Add market prices and contracts to see the graph.</p>
+                        <p className="text-sm mt-2">Add market prices to see the graph.</p>
                     </div>
                 )}
             </div>
