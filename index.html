@@ -1886,12 +1886,21 @@ return (
 
             {bidPackages.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {bidPackages.map(pkg => {
+                    {bidPackages
+                        .sort((a, b) => {
+                            // Sort order: open first, then reviewing, then awarded, then closed
+                            const statusOrder = { 'open': 0, 'reviewing': 1, 'awarded': 2, 'closed': 3 };
+                            return (statusOrder[a.status] || 3) - (statusOrder[b.status] || 3);
+                        })
+                        .map(pkg => {
                         const packageBids = getBidsForPackage(pkg.id);
                         const lowestBid = getLowestBid(packageBids);
+                        const isClosed = pkg.status === 'closed' || pkg.status === 'awarded';
                         
                         return (
-                            <div key={pkg.id} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
+                            <div key={pkg.id} className={`p-6 rounded-lg shadow hover:shadow-lg transition-shadow ${
+                                isClosed ? 'bg-gray-100' : 'bg-white'
+                            }`}>
                                 <div className="flex justify-between items-start mb-3">
                                     <div className="flex-1">
                                         <h3 className="text-lg font-semibold">{pkg.name}</h3>
@@ -4455,4 +4464,4 @@ const GraphsView = () => {
         root.render(<MaterialsManagement />);
     </script>
 </body>
-</html>
+	</html>
