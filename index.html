@@ -2687,22 +2687,30 @@ return (
                             return new Date(a.deliveryDate) - new Date(b.deliveryDate);
                         });
 
-                    let runningTotal = currentStock;
+                    let currentDate = new Date();
+                    let cumulativeMonths = 0;
                     const projections = [];
 
+                    // First, consume current stock
+                    if (currentStock > 0) {
+                        cumulativeMonths += currentStock / avgUsage;
+                    }
+
+                    // Then process each contract in sequence
                     allContracts.forEach(contract => {
                         const contractQty = parseFloat(contract.remainingQuantity || contract.totalQuantity);
-                        runningTotal += contractQty;
-                        const monthsUntilEnd = runningTotal / avgUsage;
+                        const monthsForThisContract = contractQty / avgUsage;
+                        cumulativeMonths += monthsForThisContract;
+                        
                         const endDate = new Date();
-                        endDate.setMonth(endDate.getMonth() + monthsUntilEnd);
+                        endDate.setMonth(endDate.getMonth() + cumulativeMonths);
                         
                         projections.push({
                             vendor: contract.vendor,
                             status: contract.status,
                             quantity: contractQty,
                             projectedEndDate: endDate.toISOString().substring(0, 7), // YYYY-MM
-                            monthsFromNow: Math.ceil(monthsUntilEnd)
+                            monthsFromNow: Math.ceil(cumulativeMonths)
                         });
                     });
 
@@ -4464,4 +4472,4 @@ const GraphsView = () => {
         root.render(<MaterialsManagement />);
     </script>
 </body>
-	</html>
+</html>
